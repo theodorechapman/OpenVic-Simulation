@@ -1,5 +1,7 @@
 #include "EventInstanceManager.hpp"
 
+#include <utility>
+
 #include "openvic-simulation/country/CountryInstance.hpp"
 #include "openvic-simulation/country/CountryInstanceManager.hpp"
 #include "openvic-simulation/DefinitionManager.hpp"
@@ -17,6 +19,21 @@ EventInstanceManager::EventInstanceManager(uint64_t new_rng_seed) : rng { new_rn
 
 fixed_point_t EventInstanceManager::next_random_chance() {
 	return fixed_point_t::parse_raw(rng() & (fixed_point_t::ONE - 1));
+}
+
+void EventInstanceManager::record_fired_event(
+	Event const& event, std::string_view target_identifier, bool is_province_event, size_t option_index, Date fire_date
+) {
+	if (fired_event_log.size() >= FIRED_EVENT_LOG_CAPACITY) {
+		return;
+	}
+	fired_event_log.push_back({
+		&event, memory::string { target_identifier }, is_province_event, option_index, fire_date
+	});
+}
+
+memory::vector<EventInstanceManager::FiredEventRecord> EventInstanceManager::drain_fired_event_log() {
+	return std::exchange(fired_event_log, {});
 }
 
 void EventInstanceManager::events_tick(InstanceManager& instance_manager) {
@@ -211,6 +228,7 @@ void EventInstanceManager::fire_country_event(
 		event.get_identifier(), country.get_identifier(), option_index,
 		option_index < event.get_options().size() ? event.get_options()[option_index].get_name() : "<none>"
 	);
+	record_fired_event(event, country.get_identifier(), false, option_index, instance_manager.get_today());
 
 	event.fire(context, option_index);
 }
@@ -231,6 +249,7 @@ void EventInstanceManager::fire_province_event(
 		event.get_identifier(), province.get_identifier(), option_index,
 		option_index < event.get_options().size() ? event.get_options()[option_index].get_name() : "<none>"
 	);
+	record_fired_event(event, province.get_identifier(), true, option_index, instance_manager.get_today());
 
 	event.fire(context, option_index);
 }

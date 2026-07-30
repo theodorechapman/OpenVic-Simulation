@@ -4,6 +4,7 @@
 
 #include <XoshiroCpp.hpp>
 
+#include "openvic-simulation/core/memory/String.hpp"
 #include "openvic-simulation/core/memory/Vector.hpp"
 #include "openvic-simulation/scripts/ExecutionContext.hpp"
 #include "openvic-simulation/types/Date.hpp"
@@ -24,6 +25,16 @@ namespace OpenVic {
 	 * events to a human player (and keeping them pending until answered) comes later via the
 	 * game action system. */
 	struct EventInstanceManager {
+	public:
+		/* A record of an event having fired, for UIs to display. */
+		struct FiredEventRecord {
+			Event const* event;
+			memory::string target_identifier;
+			bool is_province_event;
+			size_t option_index;
+			Date fire_date;
+		};
+
 	private:
 		/* An event queued by the delayed form of the country_event/province_event effects
 		 * (country_event = { id = X days = Y }), fired when its date arrives. Instance pointers
@@ -40,6 +51,14 @@ namespace OpenVic {
 		ordered_map<Event const*, ordered_set<CountryInstance const*>> fired_country_events;
 		ordered_map<Event const*, ordered_set<ProvinceInstance const*>> fired_province_events;
 		memory::vector<PendingEvent> pending_events;
+		/* Capped so undrained (e.g. headless) runs don't grow it unboundedly. */
+		static constexpr size_t FIRED_EVENT_LOG_CAPACITY = 1024;
+		memory::vector<FiredEventRecord> fired_event_log;
+
+		void record_fired_event(
+			Event const& event, std::string_view target_identifier, bool is_province_event, size_t option_index,
+			Date fire_date
+		);
 
 		/* A random fixed point value in [0, 1). */
 		fixed_point_t next_random_chance();
@@ -85,5 +104,8 @@ namespace OpenVic {
 			Event const& event, InstanceManager& instance_manager, ProvinceInstance& province,
 			ExecutionContext::scope_ref_t from_scope = {}
 		);
+
+		/* Take (and clear) the accumulated fired-event records, for UIs to display. */
+		memory::vector<FiredEventRecord> drain_fired_event_log();
 	};
 }
