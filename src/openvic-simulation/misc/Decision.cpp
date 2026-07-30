@@ -1,5 +1,8 @@
 #include "Decision.hpp"
 
+#include "openvic-simulation/scripts/EvaluationContext.hpp"
+#include "openvic-simulation/scripts/ExecutionContext.hpp"
+
 using namespace OpenVic;
 using namespace OpenVic::NodeTools;
 
@@ -12,6 +15,22 @@ Decision::Decision(
 	news_desc_long { new_news_desc_long }, news_desc_medium { new_news_desc_medium },
 	news_desc_short { new_news_desc_short }, picture { new_picture }, potential { std::move(new_potential) },
 	allow { std::move(new_allow) }, ai_will_do { std::move(new_ai_will_do) }, effect { std::move(new_effect) } {}
+
+bool Decision::check_potential(EvaluationContext const& context) const {
+	return potential.evaluate(context);
+}
+
+bool Decision::check_allow(EvaluationContext const& context) const {
+	return allow.evaluate(context);
+}
+
+fixed_point_t Decision::evaluate_ai_desire(EvaluationContext const& context) const {
+	return ai_will_do.evaluate(context);
+}
+
+void Decision::take_decision(ExecutionContext& context) const {
+	effect.execute(context);
+}
 
 bool Decision::parse_scripts(DefinitionManager const& definition_manager) {
 	bool ret = true;

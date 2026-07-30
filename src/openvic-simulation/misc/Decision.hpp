@@ -6,6 +6,7 @@
 
 namespace OpenVic {
 	struct DecisionManager;
+	struct ExecutionContext;
 
 	struct Decision : HasIdentifier {
 		friend struct DecisionManager;
@@ -34,6 +35,20 @@ namespace OpenVic {
 			ConditionalWeightFactorMul&& new_ai_will_do, EffectScript&& new_effect
 		);
 		Decision(Decision&&) = default;
+
+		/* Whether this decision is visible in the given context (its potential passes). */
+		bool check_potential(EvaluationContext const& context) const;
+
+		/* Whether this decision can currently be taken in the given context (its allow passes).
+		 * Does not imply the potential passes - callers check both. */
+		bool check_allow(EvaluationContext const& context) const;
+
+		/* How much an AI country wants to take this decision - zero or below means never. */
+		fixed_point_t evaluate_ai_desire(EvaluationContext const& context) const;
+
+		/* Execute this decision's effects. Callers are responsible for having checked
+		 * potential and allow first. */
+		void take_decision(ExecutionContext& context) const;
 	};
 
 	struct DecisionManager {
