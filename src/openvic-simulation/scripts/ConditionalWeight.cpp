@@ -1,5 +1,7 @@
 #include "ConditionalWeight.hpp"
 
+#include "openvic-simulation/scripts/EvaluationContext.hpp"
+
 using namespace OpenVic;
 using namespace OpenVic::NodeTools;
 
@@ -126,6 +128,39 @@ struct parse_scripts_visitor_t {
 template<conditional_weight_type_t TYPE>
 bool ConditionalWeight<TYPE>::parse_scripts(DefinitionManager const& definition_manager) {
 	return parse_scripts_visitor_t { definition_manager }(condition_weight_items);
+}
+
+template<conditional_weight_type_t TYPE>
+fixed_point_t ConditionalWeight<TYPE>::evaluate(EvaluationContext const& context) const {
+	/* Returns the weight contributed by an item: a single modifier's weight if its condition
+	 * passes, or the weight of the first passing modifier in a group. no_effect_value leaves
+	 * the running result unchanged (0 when accumulating additively, 1 multiplicatively). */
+	static constexpr fixed_point_t no_effect_value = conditional_weight_type_is_additive(TYPE) ? 0 : 1;
+
+	const auto item_weight = [&context](condition_weight_item_t const& item) -> fixed_point_t {
+		if (condition_weight_t const* modifier = std::get_if<condition_weight_t>(&item)) {
+			if (modifier->second.evaluate(context)) {
+				return modifier->first;
+			}
+			return no_effect_value;
+		}
+		for (condition_weight_t const& modifier : std::get<condition_weight_group_t>(item)) {
+			if (modifier.second.evaluate(context)) {
+				return modifier.first;
+			}
+		}
+		return no_effect_value;
+	};
+
+	fixed_point_t result = base;
+	for (condition_weight_item_t const& item : condition_weight_items) {
+		if constexpr (conditional_weight_type_is_additive(TYPE)) {
+			result += item_weight(item);
+		} else {
+			result *= item_weight(item);
+		}
+	}
+	return result;
 }
 
 template<conditional_weight_type_t TYPE>

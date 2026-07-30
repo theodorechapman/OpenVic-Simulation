@@ -131,3 +131,78 @@ TEST_CASE("ConditionScript unparsed script evaluates to false", "[scripts][condi
 	const EvaluationContext context { fixture.today, &fixture.global_flags };
 	CHECK_FALSE(script.evaluate(context));
 }
+
+template<typename ConditionalWeightT>
+static ConditionalWeightT _parse_conditional_weight(
+	DefinitionManager const& definition_manager, std::string_view source
+) {
+	ovdl::v2script::Parser parser = ovdl::v2script::Parser::from_string(source);
+	REQUIRE(parser.simple_parse());
+	REQUIRE_FALSE(parser.has_error());
+
+	ConditionalWeightT weight { scope_type_t::COUNTRY, scope_type_t::COUNTRY, scope_type_t::NO_SCOPE };
+	REQUIRE(weight.expect_conditional_weight()(parser.get_file_node()));
+	REQUIRE(weight.parse_scripts(definition_manager));
+	return weight;
+}
+
+TEST_CASE("ConditionalWeight multiplicative evaluation", "[scripts][condition-evaluation][conditional-weight]") {
+	ConditionEvaluationFixture fixture;
+	const EvaluationContext context { fixture.today, &fixture.global_flags };
+
+	const ConditionalWeightFactorMul weight = _parse_conditional_weight<ConditionalWeightFactorMul>(
+		fixture.definition_manager,
+		"factor = 12 "
+		"modifier = { factor = 0.5 always = yes } "  /* passes - halves the result */
+		"modifier = { factor = 100 always = no } "   /* fails - no effect */
+		"modifier = { factor = 3 year = 0 }"sv       /* passes - triples the result */
+	);
+
+	CHECK(weight.evaluate(context) == fixed_point_t { 18 });
+}
+
+TEST_CASE("ConditionalWeight additive evaluation", "[scripts][condition-evaluation][conditional-weight]") {
+	ConditionEvaluationFixture fixture;
+	const EvaluationContext context { fixture.today, &fixture.global_flags };
+
+	const ConditionalWeightBase weight = _parse_conditional_weight<ConditionalWeightBase>(
+		fixture.definition_manager,
+		"base = 10 "
+		"modifier = { factor = 5 always = yes } "   /* passes - adds 5 */
+		"modifier = { factor = 100 always = no }"sv /* fails - adds nothing */
+	);
+
+	CHECK(weight.evaluate(context) == fixed_point_t { 15 });
+}
+
+TEST_CASE("ConditionalWeight group evaluation", "[scripts][condition-evaluation][conditional-weight]") {
+	ConditionEvaluationFixture fixture;
+	const EvaluationContext context { fixture.today, &fixture.global_flags };
+
+	/* Within a group, only the first modifier whose condition passes applies. */
+	const ConditionalWeightFactorMul weight = _parse_conditional_weight<ConditionalWeightFactorMul>(
+		fixture.definition_manager,
+		"factor = 7 "
+		"group = { "
+		"modifier = { factor = 100 always = no } "
+		"modifier = { factor = 2 always = yes } "  /* first passing modifier - applies */
+		"modifier = { factor = 300 always = yes }" /* also passes, but never reached */
+		"}"sv
+	);
+
+	CHECK(weight.evaluate(context) == fixed_point_t { 14 });
+}
+
+TEST_CASE("ConditionalWeight time evaluation", "[scripts][condition-evaluation][conditional-weight]") {
+	ConditionEvaluationFixture fixture;
+	const EvaluationContext context { fixture.today, &fixture.global_flags };
+
+	/* MTTH-style: base in days (2 calendar months = 59 days), multiplicative modifiers. */
+	const ConditionalWeightTime weight = _parse_conditional_weight<ConditionalWeightTime>(
+		fixture.definition_manager,
+		"months = 2 "
+		"modifier = { factor = 0.5 always = yes }"sv
+	);
+
+	CHECK(weight.evaluate(context) == fixed_point_t { 59 } / 2);
+}

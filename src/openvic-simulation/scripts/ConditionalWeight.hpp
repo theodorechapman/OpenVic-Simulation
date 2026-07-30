@@ -8,6 +8,8 @@
 #include "openvic-simulation/types/fixed_point/FixedPoint.hpp"
 
 namespace OpenVic {
+	struct EvaluationContext;
+
 	enum class conditional_weight_type_t : uint8_t {
 		BASE, FACTOR_ADD, FACTOR_MUL, TIME
 	};
@@ -46,6 +48,12 @@ namespace OpenVic {
 		NodeTools::node_callback_t expect_conditional_weight();
 
 		bool parse_scripts(DefinitionManager const& definition_manager);
+
+		/* Evaluate this weight against the given game state context: the base value combined with
+		 * the weight of every modifier whose condition passes - additively for BASE and FACTOR_ADD,
+		 * multiplicatively for FACTOR_MUL and TIME. Within a group only the first modifier whose
+		 * condition passes applies, matching Victoria 2's mutually exclusive group semantics. */
+		fixed_point_t evaluate(EvaluationContext const& context) const;
 
 		// Used mainly to check if a ConditionalWeight has been properly initialised by comparing against {}
 		bool operator==(ConditionalWeight const& other) const;
