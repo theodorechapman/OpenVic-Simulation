@@ -20,9 +20,44 @@ fixed_point_t EventInstanceManager::next_random_chance() {
 }
 
 void EventInstanceManager::events_tick(InstanceManager& instance_manager) {
+	pending_events_tick(instance_manager);
 	country_events_tick(instance_manager);
 	province_events_tick(instance_manager);
 	on_action_pulses_tick(instance_manager);
+}
+
+void EventInstanceManager::queue_country_event(
+	Event const& event, CountryInstance& country, ExecutionContext::scope_ref_t from_scope, Date fire_date
+) {
+	pending_events.push_back({ &event, &country, nullptr, from_scope, fire_date });
+}
+
+void EventInstanceManager::queue_province_event(
+	Event const& event, ProvinceInstance& province, ExecutionContext::scope_ref_t from_scope, Date fire_date
+) {
+	pending_events.push_back({ &event, nullptr, &province, from_scope, fire_date });
+}
+
+void EventInstanceManager::pending_events_tick(InstanceManager& instance_manager) {
+	const Date today = instance_manager.get_today();
+
+	/* Index-based loop: firing an event can queue further events, including ones due today. */
+	for (size_t index = 0; index < pending_events.size();) {
+		if (pending_events[index].fire_date > today) {
+			++index;
+			continue;
+		}
+
+		/* Copied then erased before firing, as firing may reallocate the vector. */
+		const PendingEvent pending = pending_events[index];
+		pending_events.erase(pending_events.begin() + index);
+
+		if (pending.country != nullptr) {
+			fire_country_event(*pending.event, instance_manager, *pending.country, pending.from_scope);
+		} else if (pending.province != nullptr) {
+			fire_province_event(*pending.event, instance_manager, *pending.province, pending.from_scope);
+		}
+	}
 }
 
 void EventInstanceManager::on_action_pulses_tick(InstanceManager& instance_manager) {
@@ -160,14 +195,15 @@ void EventInstanceManager::province_events_tick(InstanceManager& instance_manage
 }
 
 void EventInstanceManager::fire_country_event(
-	Event const& event, InstanceManager& instance_manager, CountryInstance& country
+	Event const& event, InstanceManager& instance_manager, CountryInstance& country,
+	ExecutionContext::scope_ref_t from_scope
 ) {
 	if (event.fire_only_once) {
 		/* Recorded before execution so an effect chain re-triggering the event cannot recurse. */
 		fired_country_events[&event].insert(&country);
 	}
 
-	ExecutionContext context { instance_manager, &country, &country };
+	ExecutionContext context { instance_manager, &country, &country, from_scope };
 	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
 
 	SPDLOG_INFO(
@@ -180,13 +216,14 @@ void EventInstanceManager::fire_country_event(
 }
 
 void EventInstanceManager::fire_province_event(
-	Event const& event, InstanceManager& instance_manager, ProvinceInstance& province
+	Event const& event, InstanceManager& instance_manager, ProvinceInstance& province,
+	ExecutionContext::scope_ref_t from_scope
 ) {
 	if (event.fire_only_once) {
 		fired_province_events[&event].insert(&province);
 	}
 
-	ExecutionContext context { instance_manager, &province, province.get_owner() };
+	ExecutionContext context { instance_manager, &province, province.get_owner(), from_scope };
 	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
 
 	SPDLOG_INFO(

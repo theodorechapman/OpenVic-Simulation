@@ -169,16 +169,27 @@ void EffectExecutors::clr_province_flag(ExecutionContext& context, EffectNode co
 
 /* Event chain effects */
 
-/* Event identifiers are their numeric ids as strings - format the node's integer value
- * to look the event up. Returns null (with a warning) for unknown ids. */
-static Event const* _find_event(ExecutionContext const& context, EffectNode const& node) {
-	EffectNode::integer_t const* value = std::get_if<EffectNode::integer_t>(&node.get_value());
-	if (value == nullptr || context.instance_manager == nullptr) {
+/* The immediate form (country_event = X) has an integer id and no delay; the dict form
+ * (country_event = { id = X days = Y }) delays firing by Y days. */
+static std::pair<EffectNode::integer_t, EffectNode::integer_t> _get_event_id_and_delay(EffectNode const& node) {
+	if (EffectNode::integer_t const* event_id = std::get_if<EffectNode::integer_t>(&node.get_value())) {
+		return { *event_id, 0 };
+	}
+	if (EffectNode::delayed_event_t const* delayed = std::get_if<EffectNode::delayed_event_t>(&node.get_value())) {
+		return *delayed;
+	}
+	return { 0, 0 };
+}
+
+/* Event identifiers are their numeric ids as strings - format the id to look the event up.
+ * Returns null (with a warning) for unknown ids. */
+static Event const* _find_event(ExecutionContext const& context, EffectNode::integer_t event_id) {
+	if (event_id == 0 || context.instance_manager == nullptr) {
 		return nullptr;
 	}
 
 	char buffer[24] {};
-	const std::to_chars_result result = std::to_chars(buffer, buffer + sizeof(buffer), *value);
+	const std::to_chars_result result = std::to_chars(buffer, buffer + sizeof(buffer), event_id);
 	const std::string_view event_identifier { buffer, result.ptr };
 
 	Event const* event =
@@ -191,7 +202,8 @@ static Event const* _find_event(ExecutionContext const& context, EffectNode cons
 
 void EffectExecutors::country_event(ExecutionContext& context, EffectNode const& node) {
 	CountryInstance* country = context.get_current_country();
-	Event const* event = _find_event(context, node);
+	const auto [event_id, delay_days] = _get_event_id_and_delay(node);
+	Event const* event = _find_event(context, event_id);
 	if (country == nullptr || event == nullptr) {
 		return;
 	}
@@ -199,14 +211,22 @@ void EffectExecutors::country_event(ExecutionContext& context, EffectNode const&
 		spdlog::warn_s("country_event effect fired non-country event {}!", event->get_identifier());
 		return;
 	}
-	context.instance_manager->get_event_instance_manager().fire_country_event(
-		*event, *context.instance_manager, *country
-	);
+
+	/* The receiving event's FROM is the scope that sent it. */
+	EventInstanceManager& event_instance_manager = context.instance_manager->get_event_instance_manager();
+	if (delay_days > 0) {
+		event_instance_manager.queue_country_event(
+			*event, *country, context.current_scope, context.today + Timespan { static_cast<int64_t>(delay_days) }
+		);
+	} else {
+		event_instance_manager.fire_country_event(*event, *context.instance_manager, *country, context.current_scope);
+	}
 }
 
 void EffectExecutors::province_event(ExecutionContext& context, EffectNode const& node) {
 	ProvinceInstance* province = context.get_current_province();
-	Event const* event = _find_event(context, node);
+	const auto [event_id, delay_days] = _get_event_id_and_delay(node);
+	Event const* event = _find_event(context, event_id);
 	if (province == nullptr || event == nullptr) {
 		return;
 	}
@@ -214,9 +234,15 @@ void EffectExecutors::province_event(ExecutionContext& context, EffectNode const
 		spdlog::warn_s("province_event effect fired non-province event {}!", event->get_identifier());
 		return;
 	}
-	context.instance_manager->get_event_instance_manager().fire_province_event(
-		*event, *context.instance_manager, *province
-	);
+
+	EventInstanceManager& event_instance_manager = context.instance_manager->get_event_instance_manager();
+	if (delay_days > 0) {
+		event_instance_manager.queue_province_event(
+			*event, *province, context.current_scope, context.today + Timespan { static_cast<int64_t>(delay_days) }
+		);
+	} else {
+		event_instance_manager.fire_province_event(*event, *context.instance_manager, *province, context.current_scope);
+	}
 }
 
 /* Core effects */

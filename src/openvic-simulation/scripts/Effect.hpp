@@ -51,8 +51,10 @@ namespace OpenVic {
 		using boolean_t = bool;
 		using integer_t = uint64_t;
 		using real_t = fixed_point_t;
+		/* Dict-form event effects: country_event = { id = X days = Y }. */
+		using delayed_event_t = std::pair<integer_t, integer_t>;
 		using effect_list_t = memory::vector<EffectNode>;
-		using value_t = std::variant<string_t, boolean_t, integer_t, real_t, effect_list_t>;
+		using value_t = std::variant<string_t, boolean_t, integer_t, real_t, delayed_event_t, effect_list_t>;
 
 	private:
 		/* Null for the root node of a script, whose value is the list of top-level effects. */

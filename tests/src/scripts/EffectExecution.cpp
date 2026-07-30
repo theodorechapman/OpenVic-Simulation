@@ -109,6 +109,15 @@ TEST_CASE("EffectScript top-level limit blocks fail to parse", "[scripts][effect
 	fixture.parse("limit = { always = yes } set_global_flag = x"sv, false);
 }
 
+TEST_CASE("EffectScript delayed event form parses and executes safely", "[scripts][effect-execution]") {
+	EffectExecutionFixture fixture;
+
+	/* The dict form previously failed to parse entirely; without a game instance the
+	 * executor is a no-op, but parsing and execution must both succeed. */
+	fixture.execute("country_event = { id = 100000 days = 30 }"sv);
+	fixture.execute("country_event = 100000"sv);
+}
+
 TEST_CASE("EffectScript unparsed script executes without effect", "[scripts][effect-execution]") {
 	EffectExecutionFixture fixture;
 

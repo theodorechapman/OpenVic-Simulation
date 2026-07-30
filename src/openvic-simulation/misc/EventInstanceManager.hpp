@@ -4,6 +4,9 @@
 
 #include <XoshiroCpp.hpp>
 
+#include "openvic-simulation/core/memory/Vector.hpp"
+#include "openvic-simulation/scripts/ExecutionContext.hpp"
+#include "openvic-simulation/types/Date.hpp"
 #include "openvic-simulation/types/fixed_point/FixedPoint.hpp"
 #include "openvic-simulation/types/OrderedContainers.hpp"
 
@@ -22,13 +25,26 @@ namespace OpenVic {
 	 * game action system. */
 	struct EventInstanceManager {
 	private:
+		/* An event queued by the delayed form of the country_event/province_event effects
+		 * (country_event = { id = X days = Y }), fired when its date arrives. Instance pointers
+		 * are stable - countries and provinces are never created or destroyed mid-game. */
+		struct PendingEvent {
+			Event const* event;
+			CountryInstance* country;   /* Target for country events, else null. */
+			ProvinceInstance* province; /* Target for province events, else null. */
+			ExecutionContext::scope_ref_t from_scope;
+			Date fire_date;
+		};
+
 		XoshiroCpp::Xoshiro256PlusPlus rng;
 		ordered_map<Event const*, ordered_set<CountryInstance const*>> fired_country_events;
 		ordered_map<Event const*, ordered_set<ProvinceInstance const*>> fired_province_events;
+		memory::vector<PendingEvent> pending_events;
 
 		/* A random fixed point value in [0, 1). */
 		fixed_point_t next_random_chance();
 
+		void pending_events_tick(InstanceManager& instance_manager);
 		void country_events_tick(InstanceManager& instance_manager);
 		void province_events_tick(InstanceManager& instance_manager);
 		void on_action_pulses_tick(InstanceManager& instance_manager);
@@ -40,19 +56,34 @@ namespace OpenVic {
 	public:
 		explicit EventInstanceManager(uint64_t new_rng_seed = 0x4F70656E56696321 /* "OpenVic!" */);
 
-		/* Daily spontaneous event checks: for every country (or owned land province) and every
-		 * non-triggered-only event of the matching type, roll the event's daily fire chance
-		 * (1 / MTTH) if its trigger passes.
+		/* Daily event processing: fire due queued events, then spontaneous checks - for every
+		 * country (or owned land province) and every non-triggered-only event of the matching
+		 * type, roll the event's daily fire chance (1 / MTTH) if its trigger passes.
 		 * TODO - Victoria 2 staggers checks across days for performance rather than
 		 * checking every event for every country/province daily. */
 		void events_tick(InstanceManager& instance_manager);
 
+		/* Queue an event to fire when the given date arrives, keeping the sender as FROM. */
+		void queue_country_event(
+			Event const& event, CountryInstance& country, ExecutionContext::scope_ref_t from_scope, Date fire_date
+		);
+		void queue_province_event(
+			Event const& event, ProvinceInstance& province, ExecutionContext::scope_ref_t from_scope, Date fire_date
+		);
+
 		/* Execute the event for the given country - immediate effects plus the AI-chosen
-		 * option's effects - and record it for fire_only_once tracking. */
-		void fire_country_event(Event const& event, InstanceManager& instance_manager, CountryInstance& country);
+		 * option's effects - and record it for fire_only_once tracking. from_scope is the
+		 * sender for events fired by effects, empty for spontaneous events. */
+		void fire_country_event(
+			Event const& event, InstanceManager& instance_manager, CountryInstance& country,
+			ExecutionContext::scope_ref_t from_scope = {}
+		);
 
 		/* As above for a province event, executed in the province's scope with the
 		 * province's owner as THIS. */
-		void fire_province_event(Event const& event, InstanceManager& instance_manager, ProvinceInstance& province);
+		void fire_province_event(
+			Event const& event, InstanceManager& instance_manager, ProvinceInstance& province,
+			ExecutionContext::scope_ref_t from_scope = {}
+		);
 	};
 }

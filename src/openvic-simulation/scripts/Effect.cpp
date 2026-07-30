@@ -106,8 +106,12 @@ bool EffectManager::setup_effects(DefinitionManager const& definition_manager) {
 	);
 
 	/* Event chain effects */
-	ret &= add_effect("country_event", INTEGER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::country_event);
-	ret &= add_effect("province_event", INTEGER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::province_event);
+	ret &= add_effect(
+		"country_event", INTEGER | COMPLEX, COUNTRY, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::country_event
+	);
+	ret &= add_effect(
+		"province_event", INTEGER | COMPLEX, PROVINCE, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::province_event
+	);
 
 	/* Core effects */
 	ret &= add_effect(
@@ -137,6 +141,26 @@ node_callback_t EffectManager::expect_effect_node(
 
 		const std::string_view identifier = effect.get_identifier();
 		const value_type_t value_type = effect.value_type;
+
+		/* Magic-syntax dictionary effects - checked first (gated on the node actually being a
+		 * dictionary) so dual-typed effects like country_event don't attempt a scalar parse on
+		 * dictionary nodes or vice versa. */
+		if (!ret && share_value_type(value_type, COMPLEX) && dryad::node_try_cast<ast::ListValue>(node) != nullptr) {
+			if (identifier == "country_event" || identifier == "province_event") {
+				/* country_event = { id = X days = Y } - fire event X for the current scope in Y days. */
+				EffectNode::integer_t event_id = 0;
+				EffectNode::integer_t days = 0;
+				ret |= expect_dictionary_keys(
+					"id", ONE_EXACTLY, expect_uint64(assign_variable_callback(event_id)),
+					"days", ZERO_OR_ONE, expect_uint64(assign_variable_callback(days))
+				)(node);
+				if (ret) {
+					value = EffectNode::delayed_event_t { event_id, days };
+				}
+			} else {
+				spdlog::error_s("Attempted to parse unknown complex effect {}!", identifier);
+			}
+		}
 
 		if (!ret && share_value_type(value_type, IDENTIFIER)) {
 			std::string_view value_identifier {};
