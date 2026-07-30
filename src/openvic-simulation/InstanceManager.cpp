@@ -192,11 +192,12 @@ void InstanceManager::tick() {
 	map_instance.map_tick();
 	market_instance.execute_orders();
 	country_instance_manager.country_manager_tick_after_map();
-	event_instance_manager.country_events_tick(*this);
+	event_instance_manager.events_tick(*this);
 	unit_instance_manager.tick();
 
 	if (today.is_month_start()) {
 		market_instance.record_price_history();
+		decision_instance_manager.ai_decisions_tick(*this);
 	}
 }
 

@@ -143,8 +143,8 @@ TEST_CASE("InstanceManager constructs and ticks events over an empty world", "[m
 	GameRulesManager game_rules_manager;
 	InstanceManager instance_manager { game_rules_manager, fixture.definition_manager, []() {} };
 
-	/* No countries exist, so nothing can fire - but nothing must crash either. */
-	instance_manager.get_event_instance_manager().country_events_tick(instance_manager);
+	/* No countries or provinces exist, so nothing can fire - but nothing must crash either. */
+	instance_manager.get_event_instance_manager().events_tick(instance_manager);
 
 	CHECK_FALSE(instance_manager.get_global_flags().has_flag("fired_without_country"sv));
 }
