@@ -88,6 +88,7 @@ X(set_use_leader, unique_id_t, bool) \
 X(set_auto_create_leaders, country_index_t, bool) \
 X(set_auto_assign_leaders, country_index_t, bool) \
 X(set_mobilise, country_index_t, bool) \
+X(respond_to_event, uint64_t, uint64_t) \
 X(start_land_unit_recruitment, regiment_type_index_t, province_index_t, pop_id_in_province_t)
 // <--- ADD NEW GAME ACTIONS HERE (copy/edit an X(...) line)
 

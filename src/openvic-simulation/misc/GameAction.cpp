@@ -282,6 +282,13 @@ bool GameActionManager::VariantVisitor::operator() (set_auto_assign_leaders_argu
 	return old_auto_assign != country.get_auto_assign_leaders();
 }
 
+bool GameActionManager::VariantVisitor::operator() (respond_to_event_argument_t const& argument) const {
+	const auto [instance_id, option_index] = argument;
+	return instance_manager.get_event_instance_manager().resolve_player_event(
+		instance_manager, instance_id, static_cast<size_t>(option_index)
+	);
+}
+
 bool GameActionManager::VariantVisitor::operator() (set_mobilise_argument_t const& argument) const {
 	const auto [country_index, new_is_mobilised] = argument;
 	CountryInstance& country = instance_manager.get_country_instance_manager().get_country_instance_by_index(country_index);

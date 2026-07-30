@@ -1,5 +1,6 @@
 #include "EventInstanceManager.hpp"
 
+#include <algorithm>
 #include <utility>
 
 #include "openvic-simulation/country/CountryInstance.hpp"
@@ -221,6 +222,20 @@ void EventInstanceManager::fire_country_event(
 	}
 
 	ExecutionContext context { instance_manager, &country, &country, from_scope };
+
+	if (!country.is_ai()) {
+		/* Human-controlled: immediate effects run now, the option choice waits for the player. */
+		event.execute_immediate(context);
+		pending_player_events.push_back({
+			next_player_event_instance_id++, &event, &country, nullptr, from_scope, instance_manager.get_today()
+		});
+		SPDLOG_INFO(
+			"Event {} fired for player country {} - awaiting option choice",
+			event.get_identifier(), country.get_identifier()
+		);
+		return;
+	}
+
 	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
 
 	SPDLOG_INFO(
@@ -242,6 +257,21 @@ void EventInstanceManager::fire_province_event(
 	}
 
 	ExecutionContext context { instance_manager, &province, province.get_owner(), from_scope };
+
+	CountryInstance* owner = province.get_owner();
+	if (owner != nullptr && !owner->is_ai()) {
+		/* The owner chooses the option for their provinces' events, as in Victoria 2. */
+		event.execute_immediate(context);
+		pending_player_events.push_back({
+			next_player_event_instance_id++, &event, owner, &province, from_scope, instance_manager.get_today()
+		});
+		SPDLOG_INFO(
+			"Event {} fired for province {} - awaiting option choice by owner {}",
+			event.get_identifier(), province.get_identifier(), owner->get_identifier()
+		);
+		return;
+	}
+
 	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
 
 	SPDLOG_INFO(
@@ -252,4 +282,54 @@ void EventInstanceManager::fire_province_event(
 	record_fired_event(event, province.get_identifier(), true, option_index, instance_manager.get_today());
 
 	event.fire(context, option_index);
+}
+
+std::span<const EventInstanceManager::PlayerEventInstance> EventInstanceManager::get_pending_player_events() const {
+	return pending_player_events;
+}
+
+bool EventInstanceManager::resolve_player_event(
+	InstanceManager& instance_manager, uint64_t instance_id, size_t option_index
+) {
+	const auto it = std::find_if(
+		pending_player_events.begin(), pending_player_events.end(),
+		[instance_id](PlayerEventInstance const& pending) -> bool { return pending.instance_id == instance_id; }
+	);
+	if (it == pending_player_events.end()) {
+		spdlog::warn_s("Tried to resolve unknown pending player event instance {}!", instance_id);
+		return false;
+	}
+
+	/* Copied then erased before executing, as option effects may fire further events. */
+	const PlayerEventInstance pending = *it;
+	pending_player_events.erase(it);
+
+	if (option_index >= pending.event->get_options().size() && !pending.event->get_options().empty()) {
+		spdlog::warn_s(
+			"Player chose out of range option {} for event {}!", option_index, pending.event->get_identifier()
+		);
+		return false;
+	}
+
+	SPDLOG_INFO(
+		"Player resolved event {} with option {} ({})",
+		pending.event->get_identifier(), option_index,
+		option_index < pending.event->get_options().size()
+			? pending.event->get_options()[option_index].get_name() : "<none>"
+	);
+
+	if (pending.province != nullptr) {
+		ExecutionContext context { instance_manager, pending.province, pending.province->get_owner(), pending.from_scope };
+		record_fired_event(
+			*pending.event, pending.province->get_identifier(), true, option_index, instance_manager.get_today()
+		);
+		pending.event->execute_option(context, option_index);
+	} else {
+		ExecutionContext context { instance_manager, pending.country, pending.country, pending.from_scope };
+		record_fired_event(
+			*pending.event, pending.country->get_identifier(), false, option_index, instance_manager.get_today()
+		);
+		pending.event->execute_option(context, option_index);
+	}
+	return true;
 }

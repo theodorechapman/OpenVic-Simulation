@@ -89,6 +89,13 @@ namespace OpenVic {
 		 * blocks at all) are picked uniformly. Returns 0 for events without options. */
 		size_t choose_ai_option(EvaluationContext const& context, fixed_point_t random_value) const;
 
+		/* Execute this event's immediate effects - in Victoria 2 these run as soon as the
+		 * event appears, before an option is chosen. */
+		void execute_immediate(ExecutionContext& context) const;
+
+		/* Execute the chosen option's effects. */
+		void execute_option(ExecutionContext& context, size_t option_index) const;
+
 		/* Execute this event's immediate effects followed by the chosen option's effects. */
 		void fire(ExecutionContext& context, size_t option_index) const;
 	};

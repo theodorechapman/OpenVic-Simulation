@@ -35,6 +35,17 @@ namespace OpenVic {
 			Date fire_date;
 		};
 
+		/* An event that fired for a human-controlled country and awaits their option choice.
+		 * Immediate effects have already run, as in Victoria 2. */
+		struct PlayerEventInstance {
+			uint64_t instance_id;
+			Event const* event;
+			CountryInstance* country;   /* The choosing country. */
+			ProvinceInstance* province; /* Target for province events, else null. */
+			ExecutionContext::scope_ref_t from_scope;
+			Date fire_date;
+		};
+
 	private:
 		/* An event queued by the delayed form of the country_event/province_event effects
 		 * (country_event = { id = X days = Y }), fired when its date arrives. Instance pointers
@@ -54,6 +65,8 @@ namespace OpenVic {
 		/* Capped so undrained (e.g. headless) runs don't grow it unboundedly. */
 		static constexpr size_t FIRED_EVENT_LOG_CAPACITY = 1024;
 		memory::vector<FiredEventRecord> fired_event_log;
+		memory::vector<PlayerEventInstance> pending_player_events;
+		uint64_t next_player_event_instance_id = 1;
 
 		void record_fired_event(
 			Event const& event, std::string_view target_identifier, bool is_province_event, size_t option_index,
@@ -107,5 +120,13 @@ namespace OpenVic {
 
 		/* Take (and clear) the accumulated fired-event records, for UIs to display. */
 		memory::vector<FiredEventRecord> drain_fired_event_log();
+
+		/* Events awaiting a human player's option choice. */
+		std::span<const PlayerEventInstance> get_pending_player_events() const;
+
+		/* Execute the chosen option of a pending player event and remove it from the pending
+		 * list. Returns false for unknown instance ids or out of range options. Invoked
+		 * through the respond_to_event game action. */
+		bool resolve_player_event(InstanceManager& instance_manager, uint64_t instance_id, size_t option_index);
 	};
 }

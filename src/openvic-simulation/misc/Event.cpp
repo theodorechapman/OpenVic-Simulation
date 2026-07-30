@@ -88,9 +88,11 @@ size_t Event::choose_ai_option(EvaluationContext const& context, fixed_point_t r
 	return options.size() - 1;
 }
 
-void Event::fire(ExecutionContext& context, size_t option_index) const {
+void Event::execute_immediate(ExecutionContext& context) const {
 	immediate.execute(context);
+}
 
+void Event::execute_option(ExecutionContext& context, size_t option_index) const {
 	if (option_index < options.size()) {
 		options[option_index].get_effect().execute(context);
 	} else if (!options.empty()) {
@@ -99,6 +101,11 @@ void Event::fire(ExecutionContext& context, size_t option_index) const {
 			get_identifier(), option_index
 		);
 	}
+}
+
+void Event::fire(ExecutionContext& context, size_t option_index) const {
+	execute_immediate(context);
+	execute_option(context, option_index);
 }
 
 bool Event::parse_scripts(DefinitionManager const& definition_manager) {
