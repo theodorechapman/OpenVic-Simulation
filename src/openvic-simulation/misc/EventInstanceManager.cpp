@@ -167,10 +167,16 @@ void EventInstanceManager::fire_country_event(
 		fired_country_events[&event].insert(&country);
 	}
 
-	SPDLOG_INFO("Firing event {} for country {}", event.get_identifier(), country.get_identifier());
-
 	ExecutionContext context { instance_manager, &country, &country };
-	event.fire(context, event.choose_ai_option(context.to_evaluation_context(), next_random_chance()));
+	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
+
+	SPDLOG_INFO(
+		"Firing event {} for country {} - AI picked option {} ({})",
+		event.get_identifier(), country.get_identifier(), option_index,
+		option_index < event.get_options().size() ? event.get_options()[option_index].get_name() : "<none>"
+	);
+
+	event.fire(context, option_index);
 }
 
 void EventInstanceManager::fire_province_event(
@@ -180,8 +186,14 @@ void EventInstanceManager::fire_province_event(
 		fired_province_events[&event].insert(&province);
 	}
 
-	SPDLOG_INFO("Firing event {} for province {}", event.get_identifier(), province.get_identifier());
-
 	ExecutionContext context { instance_manager, &province, province.get_owner() };
-	event.fire(context, event.choose_ai_option(context.to_evaluation_context(), next_random_chance()));
+	const size_t option_index = event.choose_ai_option(context.to_evaluation_context(), next_random_chance());
+
+	SPDLOG_INFO(
+		"Firing event {} for province {} - AI picked option {} ({})",
+		event.get_identifier(), province.get_identifier(), option_index,
+		option_index < event.get_options().size() ? event.get_options()[option_index].get_name() : "<none>"
+	);
+
+	event.fire(context, option_index);
 }
