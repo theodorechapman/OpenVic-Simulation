@@ -1,14 +1,17 @@
 #include "EffectExecutors.hpp"
 
+#include <charconv>
 #include <mutex>
 
 #include "openvic-simulation/country/CountryDefinition.hpp"
 #include "openvic-simulation/country/CountryInstance.hpp"
 #include "openvic-simulation/country/CountryInstanceManager.hpp"
+#include "openvic-simulation/DefinitionManager.hpp"
 #include "openvic-simulation/InstanceManager.hpp"
 #include "openvic-simulation/map/MapInstance.hpp"
 #include "openvic-simulation/map/ProvinceDefinition.hpp"
 #include "openvic-simulation/map/ProvinceInstance.hpp"
+#include "openvic-simulation/misc/Event.hpp"
 #include "openvic-simulation/scripts/Effect.hpp"
 #include "openvic-simulation/scripts/ExecutionContext.hpp"
 #include "openvic-simulation/types/OrderedContainers.hpp"
@@ -146,6 +149,74 @@ void EffectExecutors::clr_country_flag(ExecutionContext& context, EffectNode con
 	if (value != nullptr && country != nullptr) {
 		country->clear_flag(*value, false);
 	}
+}
+
+void EffectExecutors::set_province_flag(ExecutionContext& context, EffectNode const& node) {
+	EffectNode::string_t const* value = _get_value<EffectNode::string_t>(node);
+	ProvinceInstance* province = context.get_current_province();
+	if (value != nullptr && province != nullptr) {
+		province->set_flag(*value, false);
+	}
+}
+
+void EffectExecutors::clr_province_flag(ExecutionContext& context, EffectNode const& node) {
+	EffectNode::string_t const* value = _get_value<EffectNode::string_t>(node);
+	ProvinceInstance* province = context.get_current_province();
+	if (value != nullptr && province != nullptr) {
+		province->clear_flag(*value, false);
+	}
+}
+
+/* Event chain effects */
+
+/* Event identifiers are their numeric ids as strings - format the node's integer value
+ * to look the event up. Returns null (with a warning) for unknown ids. */
+static Event const* _find_event(ExecutionContext const& context, EffectNode const& node) {
+	EffectNode::integer_t const* value = std::get_if<EffectNode::integer_t>(&node.get_value());
+	if (value == nullptr || context.instance_manager == nullptr) {
+		return nullptr;
+	}
+
+	char buffer[24] {};
+	const std::to_chars_result result = std::to_chars(buffer, buffer + sizeof(buffer), *value);
+	const std::string_view event_identifier { buffer, result.ptr };
+
+	Event const* event =
+		context.instance_manager->definition_manager.get_event_manager().get_event_by_identifier(event_identifier);
+	if (event == nullptr) {
+		spdlog::warn_s("Event effect references unknown event id {}!", event_identifier);
+	}
+	return event;
+}
+
+void EffectExecutors::country_event(ExecutionContext& context, EffectNode const& node) {
+	CountryInstance* country = context.get_current_country();
+	Event const* event = _find_event(context, node);
+	if (country == nullptr || event == nullptr) {
+		return;
+	}
+	if (event->get_type() != Event::event_type_t::COUNTRY) {
+		spdlog::warn_s("country_event effect fired non-country event {}!", event->get_identifier());
+		return;
+	}
+	context.instance_manager->get_event_instance_manager().fire_country_event(
+		*event, *context.instance_manager, *country
+	);
+}
+
+void EffectExecutors::province_event(ExecutionContext& context, EffectNode const& node) {
+	ProvinceInstance* province = context.get_current_province();
+	Event const* event = _find_event(context, node);
+	if (province == nullptr || event == nullptr) {
+		return;
+	}
+	if (event->get_type() != Event::event_type_t::PROVINCE) {
+		spdlog::warn_s("province_event effect fired non-province event {}!", event->get_identifier());
+		return;
+	}
+	context.instance_manager->get_event_instance_manager().fire_province_event(
+		*event, *context.instance_manager, *province
+	);
 }
 
 /* Core effects */

@@ -98,6 +98,17 @@ bool EffectManager::setup_effects(DefinitionManager const& definition_manager) {
 		"clr_country_flag", IDENTIFIER, COUNTRY, NO_SCOPE, COUNTRY_FLAG, EffectExecutors::clr_country_flag
 	);
 
+	ret &= add_effect(
+		"set_province_flag", IDENTIFIER, PROVINCE, NO_SCOPE, PROVINCE_FLAG, EffectExecutors::set_province_flag
+	);
+	ret &= add_effect(
+		"clr_province_flag", IDENTIFIER, PROVINCE, NO_SCOPE, PROVINCE_FLAG, EffectExecutors::clr_province_flag
+	);
+
+	/* Event chain effects */
+	ret &= add_effect("country_event", INTEGER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::country_event);
+	ret &= add_effect("province_event", INTEGER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::province_event);
+
 	/* Core effects */
 	ret &= add_effect(
 		"add_core", IDENTIFIER, PROVINCE | COUNTRY, NO_SCOPE, COUNTRY_TAG | PROVINCE_ID, EffectExecutors::add_core

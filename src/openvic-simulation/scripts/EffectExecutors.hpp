@@ -23,6 +23,14 @@ namespace OpenVic {
 		void clr_global_flag(ExecutionContext& context, EffectNode const& node);
 		void set_country_flag(ExecutionContext& context, EffectNode const& node);
 		void clr_country_flag(ExecutionContext& context, EffectNode const& node);
+		void set_province_flag(ExecutionContext& context, EffectNode const& node);
+		void clr_province_flag(ExecutionContext& context, EffectNode const& node);
+
+		/* Event chain effects - fire the identified event immediately for the current scope.
+		 * TODO - Victoria 2's dictionary form ({ id = X days = Y }) delays the event; only the
+		 * immediate id-value form is supported so far. */
+		void country_event(ExecutionContext& context, EffectNode const& node);
+		void province_event(ExecutionContext& context, EffectNode const& node);
 
 		/* Core effects - dual form: in province scope the value names the country gaining/losing
 		 * the core, in country scope the value names the province gaining/losing it. */
