@@ -166,7 +166,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("consciousness", REAL, COUNTRY);
 	ret &= add_condition("constructing_cb_progress", REAL, COUNTRY);
 	ret &= add_condition("constructing_cb_type", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CASUS_BELLI);
-	ret &= add_condition("continent", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CONTINENT);
+	ret &= add_condition("continent", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CONTINENT, ConditionEvaluators::continent);
 	ret &= add_condition("controls", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID);
 	ret &= add_condition("crime_fighting", REAL, COUNTRY);
 	ret &= add_condition("crime_higher_than_education", BOOLEAN, COUNTRY);
@@ -263,7 +263,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("poor_strata_life_needs", REAL, COUNTRY);
 	ret &= add_condition("poor_strata_luxury_needs", REAL, COUNTRY);
 	ret &= add_condition("poor_tax", REAL, COUNTRY);
-	ret &= add_condition("prestige", REAL, COUNTRY);
+	ret &= add_condition("prestige", REAL, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::prestige);
 	ret &= add_condition("primary_culture", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CULTURE);
 	ret &= add_condition("accepted_culture", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CULTURE);
 	ret &= add_condition("produces", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, TRADE_GOOD);
@@ -311,7 +311,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("war_exhaustion", REAL, COUNTRY);
 	ret &= add_condition("war_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
 	ret &= add_condition("war_score", REAL, COUNTRY);
-	ret &= add_condition("war_with", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
+	ret &= add_condition("war_with", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG, ConditionEvaluators::war_with);
 
 	/* State Scope Conditions */
 	ret &= add_condition("controlled_by", IDENTIFIER, STATE, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
@@ -340,21 +340,25 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("has_recent_imigration", INTEGER, PROVINCE); // paradox typo
 	ret &= add_condition("is_blockaded", BOOLEAN, PROVINCE);
 	ret &= add_condition("is_accepted_culture", IDENTIFIER | BOOLEAN, PROVINCE, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("is_capital", BOOLEAN, PROVINCE);
-	ret &= add_condition("is_coastal", BOOLEAN, PROVINCE);
+	ret &= add_condition("is_capital", BOOLEAN, PROVINCE, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::is_capital);
+	ret &= add_condition("is_coastal", BOOLEAN, PROVINCE, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::is_coastal);
 	ret &= add_condition("is_overseas", BOOLEAN, PROVINCE);
 	ret &= add_condition("is_primary_culture", IDENTIFIER | BOOLEAN, PROVINCE, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("is_state_capital", BOOLEAN, PROVINCE);
 	ret &= add_condition("is_state_religion", BOOLEAN, PROVINCE);
-	ret &= add_condition("life_rating", REAL, PROVINCE);
+	ret &= add_condition("life_rating", REAL, PROVINCE, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::life_rating);
 	ret &= add_condition("minorities", BOOLEAN, PROVINCE);
-	ret &= add_condition("port", BOOLEAN, PROVINCE);
+	ret &= add_condition("port", BOOLEAN, PROVINCE, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::port);
 	ret &= add_condition("province_control_days", INTEGER, PROVINCE);
-	ret &= add_condition("province_id", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID);
+	ret &= add_condition(
+		"province_id", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID, ConditionEvaluators::province_id
+	);
 	ret &= add_condition("region", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, REGION);
 	ret &= add_condition("state_id", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID);
-	ret &= add_condition("terrain", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, TERRAIN);
-	ret &= add_condition("trade_goods", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, TRADE_GOOD);
+	ret &= add_condition("terrain", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, TERRAIN, ConditionEvaluators::terrain);
+	ret &= add_condition(
+		"trade_goods", IDENTIFIER, PROVINCE, NO_SCOPE, NO_IDENTIFIER, TRADE_GOOD, ConditionEvaluators::trade_goods
+	);
 	ret &= add_condition("unemployment_by_type", COMPLEX, PROVINCE);
 	ret &= add_condition("units_in_province", INTEGER, PROVINCE);
 
@@ -366,10 +370,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("luxury_needs", REAL, POP);
 	ret &= add_condition("political_movement", BOOLEAN, POP);
 	ret &= add_condition("pop_majority_issue", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
-	ret &= add_condition("pop_type", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_TYPE);
+	ret &= add_condition("pop_type", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_TYPE, ConditionEvaluators::pop_type);
 	ret &= add_condition("social_movement", BOOLEAN, POP);
-	ret &= add_condition("strata", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_STRATA);
-	ret &= add_condition("type", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_TYPE);
+	ret &= add_condition("strata", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_STRATA, ConditionEvaluators::pop_strata);
+	ret &= add_condition("type", IDENTIFIER, POP, NO_SCOPE, NO_IDENTIFIER, POP_TYPE, ConditionEvaluators::pop_type);
 
 	const auto import_identifiers = [this, &ret](
 		memory::vector<std::string_view> const& identifiers,

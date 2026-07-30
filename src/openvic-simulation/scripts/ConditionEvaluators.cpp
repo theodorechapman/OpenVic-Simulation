@@ -5,11 +5,15 @@
 #include "openvic-simulation/country/CountryDefinition.hpp"
 #include "openvic-simulation/country/CountryInstance.hpp"
 #include "openvic-simulation/country/CountryInstanceManager.hpp"
+#include "openvic-simulation/economy/GoodDefinition.hpp"
 #include "openvic-simulation/InstanceManager.hpp"
 #include "openvic-simulation/map/MapInstance.hpp"
 #include "openvic-simulation/map/ProvinceDefinition.hpp"
 #include "openvic-simulation/map/ProvinceInstance.hpp"
+#include "openvic-simulation/map/Region.hpp"
+#include "openvic-simulation/map/TerrainType.hpp"
 #include "openvic-simulation/population/Pop.hpp"
+#include "openvic-simulation/population/PopType.hpp"
 #include "openvic-simulation/scripts/Condition.hpp"
 #include "openvic-simulation/scripts/EvaluationContext.hpp"
 #include "openvic-simulation/types/OrderedContainers.hpp"
@@ -330,4 +334,107 @@ bool ConditionEvaluators::has_country_flag(EvaluationContext const& context, Con
 	ConditionNode::string_t const* value = _get_value<ConditionNode::string_t>(node);
 	CountryInstance const* country = context.get_current_country();
 	return value != nullptr && country != nullptr && country->has_flag(*value);
+}
+
+bool ConditionEvaluators::prestige(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::real_t const* value = _get_value<ConditionNode::real_t>(node);
+	CountryInstance const* country = context.get_current_country();
+	return value != nullptr && country != nullptr && country->get_prestige_untracked() >= *value;
+}
+
+bool ConditionEvaluators::war_with(EvaluationContext const& context, ConditionNode const& node) {
+	CountryInstance const* country = context.get_current_country();
+	CountryDefinition const* target =
+		static_cast<CountryDefinition const*>(node.get_condition_value_item());
+	if (country == nullptr || target == nullptr || context.instance_manager == nullptr) {
+		return false;
+	}
+	return country->is_at_war_with(
+		context.instance_manager->get_country_instance_manager().get_country_instance_by_definition(*target)
+	);
+}
+
+bool ConditionEvaluators::continent(EvaluationContext const& context, ConditionNode const& node) {
+	Continent const* target = static_cast<Continent const*>(node.get_condition_value_item());
+	if (target == nullptr) {
+		return false;
+	}
+
+	if (ProvinceInstance const* province = context.get_current_province()) {
+		return province->province_definition.get_continent() == target;
+	}
+	if (CountryInstance const* country = context.get_current_country()) {
+		return country->get_capital() != nullptr &&
+			country->get_capital()->province_definition.get_continent() == target;
+	}
+	return false;
+}
+
+/* Province scope leaf conditions */
+
+bool ConditionEvaluators::terrain(EvaluationContext const& context, ConditionNode const& node) {
+	ProvinceInstance const* province = context.get_current_province();
+	return province != nullptr && node.get_condition_value_item() != nullptr &&
+		province->get_terrain_type() == static_cast<TerrainType const*>(node.get_condition_value_item());
+}
+
+bool ConditionEvaluators::trade_goods(EvaluationContext const& context, ConditionNode const& node) {
+	ProvinceInstance const* province = context.get_current_province();
+	return province != nullptr && node.get_condition_value_item() != nullptr &&
+		province->get_rgo_good() == static_cast<GoodDefinition const*>(node.get_condition_value_item());
+}
+
+bool ConditionEvaluators::life_rating(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::real_t const* value = _get_value<ConditionNode::real_t>(node);
+	ProvinceInstance const* province = context.get_current_province();
+	return value != nullptr && province != nullptr &&
+		fixed_point_t { type_safe::get(province->get_life_rating()) } >= *value;
+}
+
+bool ConditionEvaluators::province_id(EvaluationContext const& context, ConditionNode const& node) {
+	ProvinceInstance const* province = context.get_current_province();
+	return province != nullptr &&
+		&province->province_definition == static_cast<ProvinceDefinition const*>(node.get_condition_value_item());
+}
+
+bool ConditionEvaluators::is_capital(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::boolean_t const* value = _get_value<ConditionNode::boolean_t>(node);
+	ProvinceInstance const* province = context.get_current_province();
+	if (value == nullptr || province == nullptr) {
+		return false;
+	}
+	const bool capital = province->get_owner() != nullptr && province->get_owner()->get_capital() == province;
+	return capital == *value;
+}
+
+bool ConditionEvaluators::is_coastal(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::boolean_t const* value = _get_value<ConditionNode::boolean_t>(node);
+	ProvinceInstance const* province = context.get_current_province();
+	return value != nullptr && province != nullptr && province->province_definition.is_coastal() == *value;
+}
+
+bool ConditionEvaluators::port(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::boolean_t const* value = _get_value<ConditionNode::boolean_t>(node);
+	ProvinceInstance const* province = context.get_current_province();
+	return value != nullptr && province != nullptr && province->province_definition.has_port() == *value;
+}
+
+/* Pop scope leaf conditions */
+
+bool ConditionEvaluators::pop_type(EvaluationContext const& context, ConditionNode const& node) {
+	Pop const* pop = context.get_current_pop();
+	if (pop == nullptr || node.get_condition_value_item() == nullptr) {
+		return false;
+	}
+	PopType const& type = pop->get_type();
+	return &type == static_cast<PopType const*>(node.get_condition_value_item());
+}
+
+bool ConditionEvaluators::pop_strata(EvaluationContext const& context, ConditionNode const& node) {
+	Pop const* pop = context.get_current_pop();
+	if (pop == nullptr || node.get_condition_value_item() == nullptr) {
+		return false;
+	}
+	PopType const& type = pop->get_type();
+	return &type.strata == static_cast<Strata const*>(node.get_condition_value_item());
 }

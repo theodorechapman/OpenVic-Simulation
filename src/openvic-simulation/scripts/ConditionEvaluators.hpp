@@ -46,5 +46,22 @@ namespace OpenVic {
 		bool is_greater_power(EvaluationContext const& context, ConditionNode const& node);
 		bool is_secondary_power(EvaluationContext const& context, ConditionNode const& node);
 		bool has_country_flag(EvaluationContext const& context, ConditionNode const& node);
+		bool prestige(EvaluationContext const& context, ConditionNode const& node);
+		bool war_with(EvaluationContext const& context, ConditionNode const& node);
+		/* Country scope compares the capital's continent, province scope the province's own. */
+		bool continent(EvaluationContext const& context, ConditionNode const& node);
+
+		/* Province scope leaf conditions */
+		bool terrain(EvaluationContext const& context, ConditionNode const& node);
+		bool trade_goods(EvaluationContext const& context, ConditionNode const& node);
+		bool life_rating(EvaluationContext const& context, ConditionNode const& node);
+		bool province_id(EvaluationContext const& context, ConditionNode const& node);
+		bool is_capital(EvaluationContext const& context, ConditionNode const& node);
+		bool is_coastal(EvaluationContext const& context, ConditionNode const& node);
+		bool port(EvaluationContext const& context, ConditionNode const& node);
+
+		/* Pop scope leaf conditions */
+		bool pop_type(EvaluationContext const& context, ConditionNode const& node);
+		bool pop_strata(EvaluationContext const& context, ConditionNode const& node);
 	}
 }
