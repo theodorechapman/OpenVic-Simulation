@@ -48,6 +48,9 @@ namespace OpenVic {
 		bool has_country_flag(EvaluationContext const& context, ConditionNode const& node);
 		bool prestige(EvaluationContext const& context, ConditionNode const& node);
 		bool war_with(EvaluationContext const& context, ConditionNode const& node);
+		/* Family evaluator for every technology-name condition (<tech> = 1). */
+		bool has_technology(EvaluationContext const& context, ConditionNode const& node);
+		bool has_invention(EvaluationContext const& context, ConditionNode const& node);
 		/* Country scope compares the capital's continent, province scope the province's own. */
 		bool continent(EvaluationContext const& context, ConditionNode const& node);
 

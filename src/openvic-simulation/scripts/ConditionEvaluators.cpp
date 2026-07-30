@@ -14,6 +14,8 @@
 #include "openvic-simulation/map/TerrainType.hpp"
 #include "openvic-simulation/population/Pop.hpp"
 #include "openvic-simulation/population/PopType.hpp"
+#include "openvic-simulation/research/Invention.hpp"
+#include "openvic-simulation/research/Technology.hpp"
 #include "openvic-simulation/scripts/Condition.hpp"
 #include "openvic-simulation/scripts/EvaluationContext.hpp"
 #include "openvic-simulation/types/OrderedContainers.hpp"
@@ -352,6 +354,23 @@ bool ConditionEvaluators::war_with(EvaluationContext const& context, ConditionNo
 	return country->is_at_war_with(
 		context.instance_manager->get_country_instance_manager().get_country_instance_by_definition(*target)
 	);
+}
+
+bool ConditionEvaluators::has_technology(EvaluationContext const& context, ConditionNode const& node) {
+	ConditionNode::boolean_t const* value = _get_value<ConditionNode::boolean_t>(node);
+	CountryInstance const* country = context.get_current_country();
+	Technology const* technology = static_cast<Technology const*>(node.get_condition_key_item());
+	if (value == nullptr || country == nullptr || technology == nullptr) {
+		return false;
+	}
+	/* Victoria 2: '<technology> = 1' passes once the technology is researched. */
+	return country->is_technology_unlocked(*technology) == *value;
+}
+
+bool ConditionEvaluators::has_invention(EvaluationContext const& context, ConditionNode const& node) {
+	CountryInstance const* country = context.get_current_country();
+	Invention const* invention = static_cast<Invention const*>(node.get_condition_value_item());
+	return country != nullptr && invention != nullptr && country->is_invention_unlocked(*invention);
 }
 
 bool ConditionEvaluators::continent(EvaluationContext const& context, ConditionNode const& node) {

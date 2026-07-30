@@ -198,7 +198,9 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("industrial_score", REAL | IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("in_sphere", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("in_default", IDENTIFIER | BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("invention", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, INVENTION);
+	ret &= add_condition(
+		"invention", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, INVENTION, ConditionEvaluators::has_invention
+	);
 	ret &= add_condition("involved_in_crisis", BOOLEAN, COUNTRY);
 	ret &= add_condition("is_claim_crisis", BOOLEAN, COUNTRY);
 	ret &= add_condition("is_colonial_crisis", BOOLEAN, COUNTRY);
@@ -381,12 +383,13 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		scope_type_t scope,
 		scope_type_t scope_change = NO_SCOPE,
 		identifier_type_t key_identifier_type = NO_IDENTIFIER,
-		identifier_type_t value_identifier_type = NO_IDENTIFIER
+		identifier_type_t value_identifier_type = NO_IDENTIFIER,
+		Condition::evaluate_fn_t evaluate_fn = nullptr
 	) -> void {
 		for (std::string_view const& identifier : identifiers) {
 			ret &= add_condition(
 				identifier, value_type, scope, scope_change,
-				key_identifier_type, value_identifier_type
+				key_identifier_type, value_identifier_type, evaluate_fn
 			);
 		}
 	};
@@ -471,7 +474,8 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		COUNTRY,
 		NO_SCOPE,
 		TECHNOLOGY,
-		NO_IDENTIFIER
+		NO_IDENTIFIER,
+		ConditionEvaluators::has_technology
 	);
 
 	import_identifiers(
