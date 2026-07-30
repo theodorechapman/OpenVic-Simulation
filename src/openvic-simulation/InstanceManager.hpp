@@ -17,6 +17,7 @@
 #include "openvic-simulation/map/Mapmode.hpp"
 #include "openvic-simulation/map/ProvinceInstanceDeps.hpp"
 #include "openvic-simulation/military/UnitInstanceGroup.hpp"
+#include "openvic-simulation/misc/EventInstanceManager.hpp"
 #include "openvic-simulation/misc/GameAction.hpp"
 #include "openvic-simulation/misc/SimulationClock.hpp"
 #include "openvic-simulation/politics/PoliticsInstanceManager.hpp"
@@ -57,6 +58,7 @@ namespace OpenVic {
 		CountryInstanceManager PROPERTY_REF(country_instance_manager);
 		UnitInstanceManager PROPERTY_REF(unit_instance_manager);
 		PoliticsInstanceManager PROPERTY_REF(politics_instance_manager);
+		EventInstanceManager PROPERTY_REF(event_instance_manager);
 		/* Near the end so it is freed after other managers that may depend on it,
 		 * e.g. if we want to remove military units from the province they're in when they're destructed. */
 		MapInstance PROPERTY_REF(map_instance);

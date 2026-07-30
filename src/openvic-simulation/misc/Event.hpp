@@ -10,6 +10,7 @@
 
 namespace OpenVic {
 	struct EventManager;
+	struct ExecutionContext;
 	struct IssueManager;
 
 	struct Event : HasIdentifier {
@@ -74,6 +75,21 @@ namespace OpenVic {
 			memory::vector<EventOption>&& new_options
 		);
 		Event(Event&&) = default;
+
+		/* Whether this event's trigger passes in the given context. Events without a parsed
+		 * trigger never pass - they can only be fired directly (e.g. by is_triggered_only). */
+		bool check_trigger(EvaluationContext const& context) const;
+
+		/* The chance of this event firing on a given day once its trigger passes, derived from
+		 * its mean time to happen: 1 / MTTH days, or 1 for events with no (positive) MTTH. */
+		fixed_point_t calculate_daily_fire_chance(EvaluationContext const& context) const;
+
+		/* The option an AI country picks: the highest evaluated ai_chance weight, earliest
+		 * option winning ties. Returns 0 for events without options. */
+		size_t choose_ai_option(EvaluationContext const& context) const;
+
+		/* Execute this event's immediate effects followed by the chosen option's effects. */
+		void fire(ExecutionContext& context, size_t option_index) const;
 	};
 
 	struct OnAction : HasIdentifier {

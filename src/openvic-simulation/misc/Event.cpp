@@ -7,6 +7,8 @@
 
 #include "openvic-simulation/dataloader/NodeTools.hpp"
 #include "openvic-simulation/politics/IssueManager.hpp"
+#include "openvic-simulation/scripts/EvaluationContext.hpp"
+#include "openvic-simulation/scripts/ExecutionContext.hpp"
 
 using namespace OpenVic;
 using namespace OpenVic::NodeTools;
@@ -36,6 +38,45 @@ Event::Event(
 	election { new_election }, election_issue_group { new_election_issue_group }, trigger { std::move(new_trigger) },
 	mean_time_to_happen { std::move(new_mean_time_to_happen) }, immediate { std::move(new_immediate) },
 	options { std::move(new_options) } {}
+
+bool Event::check_trigger(EvaluationContext const& context) const {
+	return trigger.evaluate(context);
+}
+
+fixed_point_t Event::calculate_daily_fire_chance(EvaluationContext const& context) const {
+	const fixed_point_t mean_days = mean_time_to_happen.evaluate(context);
+	if (mean_days <= 0) {
+		return 1;
+	}
+	return fixed_point_t { 1 } / mean_days;
+}
+
+size_t Event::choose_ai_option(EvaluationContext const& context) const {
+	size_t best_option = 0;
+	fixed_point_t best_weight = fixed_point_t::min;
+
+	for (size_t index = 0; index < options.size(); ++index) {
+		const fixed_point_t weight = options[index].get_ai_chance().evaluate(context);
+		if (weight > best_weight) {
+			best_weight = weight;
+			best_option = index;
+		}
+	}
+	return best_option;
+}
+
+void Event::fire(ExecutionContext& context, size_t option_index) const {
+	immediate.execute(context);
+
+	if (option_index < options.size()) {
+		options[option_index].get_effect().execute(context);
+	} else if (!options.empty()) {
+		spdlog::error_s(
+			"Event {} fired with out of range option index {} - no option effect executed!",
+			get_identifier(), option_index
+		);
+	}
+}
 
 bool Event::parse_scripts(DefinitionManager const& definition_manager) {
 	bool ret = true;

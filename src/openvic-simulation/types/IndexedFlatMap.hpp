@@ -87,6 +87,15 @@ namespace OpenVic {
 			return index - min_index;
 		}
 
+		/* Empty key spans produce the same state as default construction (min_index == max_index == 0,
+		 * no values) instead of the undefined behaviour of calling front()/back() on an empty span. */
+		static constexpr size_t get_min_index_of_keys(keys_span_type some_keys) {
+			return some_keys.empty() ? 0 : type_safe::get(some_keys.front().index);
+		}
+		static constexpr size_t get_max_index_of_keys(keys_span_type some_keys) {
+			return some_keys.empty() ? 0 : type_safe::get(some_keys.back().index);
+		}
+
 		/**
 		* @brief Validates that the provided span of keys is ordered and continuous.
 		* Logs errors if validation fails.
@@ -224,8 +233,8 @@ namespace OpenVic {
 			keys_span_type new_keys,
 			GeneratorTemplateType value_generator
 		) : keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values() {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {
@@ -264,8 +273,8 @@ namespace OpenVic {
 			keys_span_type new_keys,
 			GeneratorTemplateType value_generator
 		) : keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values { create_empty, new_keys.size() } {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {
@@ -310,8 +319,8 @@ namespace OpenVic {
 			keys_span_type new_keys,
 			GeneratorTemplateType&& value_generator
 		) : keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values() {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {
@@ -358,8 +367,8 @@ namespace OpenVic {
 			keys_span_type new_keys,
 			GeneratorTemplateType value_generator
 		) : keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values { create_empty, new_keys.size() } {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {
@@ -390,8 +399,8 @@ namespace OpenVic {
 		requires (std::is_move_constructible_v<ValueType> || std::is_copy_constructible_v<ValueType>)
 		&& (std::default_initializable<ValueType> || std::constructible_from<ValueType, ForwardedKeyType const&>)
 			: keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values() {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {
@@ -423,8 +432,8 @@ namespace OpenVic {
 		requires (!std::is_move_constructible_v<ValueType>) && (!std::is_copy_constructible_v<ValueType>)
 		&& (std::default_initializable<ValueType> || std::constructible_from<ValueType, ForwardedKeyType const&>)
 			: keys(new_keys),
-			min_index { type_safe::get(new_keys.front().index) },
-			max_index { type_safe::get(new_keys.back().index) },
+			min_index { get_min_index_of_keys(new_keys) },
+			max_index { get_max_index_of_keys(new_keys) },
 			values { create_empty, new_keys.size() } {
 			static_assert(has_index<ForwardedKeyType>);
 			if (!validate_new_keys(new_keys)) {

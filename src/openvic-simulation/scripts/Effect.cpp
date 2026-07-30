@@ -136,7 +136,11 @@ node_callback_t EffectManager::expect_effect_node(
 				ret |= definition_manager.get_script_manager().get_condition_manager().expect_parse_identifier(
 					definition_manager, effect.value_identifier_type, assign_variable_callback(value_item)
 				)(value_identifier);
-				if (value_item == nullptr && value_type == IDENTIFIER) {
+				/* Flags and variables are free-form names rather than registered identifiers,
+				 * so a null value_item is expected for them. */
+				const identifier_type_t free_form_types = VARIABLE | GLOBAL_FLAG | COUNTRY_FLAG | PROVINCE_FLAG;
+				if (value_item == nullptr && value_type == IDENTIFIER &&
+					!share_identifier_type(effect.value_identifier_type, free_form_types)) {
 					spdlog::warn_s(
 						"Unrecognised identifier {} for effect {} - the effect may do nothing!",
 						value_identifier, identifier
