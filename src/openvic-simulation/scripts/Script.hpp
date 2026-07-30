@@ -15,6 +15,7 @@ namespace OpenVic {
 	public:
 		constexpr Script() {};
 		Script(Script&&) = default;
+		Script& operator=(Script&&) = default;
 
 		constexpr bool has_defines_node() const {
 			return !_root_nodes.empty();

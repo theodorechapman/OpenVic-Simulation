@@ -43,7 +43,14 @@ namespace OpenVic {
 		constexpr EvaluationContext(
 			Date new_today, FlagStrings const* new_global_flags, scope_ref_t new_current_scope = {},
 			scope_ref_t new_this_scope = {}, scope_ref_t new_from_scope = {}
-		) : today { new_today }, global_flags { new_global_flags }, instance_manager { nullptr },
+		) : EvaluationContext {
+			new_today, new_global_flags, nullptr, new_current_scope, new_this_scope, new_from_scope
+		} {}
+
+		constexpr EvaluationContext(
+			Date new_today, FlagStrings const* new_global_flags, InstanceManager const* new_instance_manager,
+			scope_ref_t new_current_scope, scope_ref_t new_this_scope, scope_ref_t new_from_scope
+		) : today { new_today }, global_flags { new_global_flags }, instance_manager { new_instance_manager },
 			current_scope { new_current_scope }, this_scope { new_this_scope }, from_scope { new_from_scope } {}
 
 		constexpr scope_type_t get_current_scope_type() const {

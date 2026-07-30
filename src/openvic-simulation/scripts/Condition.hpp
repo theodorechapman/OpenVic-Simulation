@@ -271,11 +271,6 @@ namespace OpenVic {
 			Condition::evaluate_fn_t evaluate_fn = nullptr
 		);
 
-		NodeTools::callback_t<std::string_view> expect_parse_identifier(
-			DefinitionManager const& definition_manager, identifier_type_t identifier_type,
-			NodeTools::callback_t<HasIdentifier const*> callback
-		) const;
-
 		NodeTools::node_callback_t expect_condition_node(
 			DefinitionManager const& definition_manager, Condition const& condition, scope_type_t current_scope,
 			scope_type_t this_scope, scope_type_t from_scope, NodeTools::callback_t<ConditionNode&&> callback
@@ -288,6 +283,13 @@ namespace OpenVic {
 
 	public:
 		bool setup_conditions(DefinitionManager const& definition_manager);
+
+		/* Resolve a script identifier of the given type(s) to its definition object.
+		 * Also used by EffectManager, as conditions and effects share identifier vocabulary. */
+		NodeTools::callback_t<std::string_view> expect_parse_identifier(
+			DefinitionManager const& definition_manager, identifier_type_t identifier_type,
+			NodeTools::callback_t<HasIdentifier const*> callback
+		) const;
 
 		bool expect_condition_script(
 			DefinitionManager const& definition_manager, scope_type_t initial_scope, scope_type_t this_scope,

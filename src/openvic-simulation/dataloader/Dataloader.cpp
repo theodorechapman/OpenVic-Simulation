@@ -1189,6 +1189,10 @@ bool Dataloader::load_defines(
 		spdlog::critical_s("Failed to set up conditions!");
 		ret = false;
 	}
+	if (!definition_manager.get_script_manager().get_effect_manager().setup_effects(definition_manager)) {
+		spdlog::critical_s("Failed to set up effects!");
+		ret = false;
+	}
 
 	ret &= parse_scripts(definition_manager);
 
