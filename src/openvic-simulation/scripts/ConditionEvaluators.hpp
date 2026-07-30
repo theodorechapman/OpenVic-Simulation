@@ -51,6 +51,14 @@ namespace OpenVic {
 		/* Family evaluator for every technology-name condition (<tech> = 1). */
 		bool has_technology(EvaluationContext const& context, ConditionNode const& node);
 		bool has_invention(EvaluationContext const& context, ConditionNode const& node);
+		/* '<reform_group> = <reform>' - the country's active reform in that group. */
+		bool active_reform(EvaluationContext const& context, ConditionNode const& node);
+		/* 'citizenship_policy = residency' etc. - the ruling party's policy in the value's group. */
+		bool ruling_party_policy(EvaluationContext const& context, ConditionNode const& node);
+		/* '<reform/policy/ideology name> = X' - national pop support fraction of at least X. */
+		bool reform_support(EvaluationContext const& context, ConditionNode const& node);
+		bool party_policy_support(EvaluationContext const& context, ConditionNode const& node);
+		bool ideology_support(EvaluationContext const& context, ConditionNode const& node);
 		/* Country scope compares the capital's continent, province scope the province's own. */
 		bool continent(EvaluationContext const& context, ConditionNode const& node);
 

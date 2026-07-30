@@ -170,7 +170,7 @@ void EventInstanceManager::fire_country_event(
 	SPDLOG_INFO("Firing event {} for country {}", event.get_identifier(), country.get_identifier());
 
 	ExecutionContext context { instance_manager, &country, &country };
-	event.fire(context, event.choose_ai_option(context.to_evaluation_context()));
+	event.fire(context, event.choose_ai_option(context.to_evaluation_context(), next_random_chance()));
 }
 
 void EventInstanceManager::fire_province_event(
@@ -183,5 +183,5 @@ void EventInstanceManager::fire_province_event(
 	SPDLOG_INFO("Firing event {} for province {}", event.get_identifier(), province.get_identifier());
 
 	ExecutionContext context { instance_manager, &province, province.get_owner() };
-	event.fire(context, event.choose_ai_option(context.to_evaluation_context()));
+	event.fire(context, event.choose_ai_option(context.to_evaluation_context(), next_random_chance()));
 }

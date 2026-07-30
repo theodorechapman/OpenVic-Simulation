@@ -51,18 +51,41 @@ fixed_point_t Event::calculate_daily_fire_chance(EvaluationContext const& contex
 	return fixed_point_t { 1 } / mean_days;
 }
 
-size_t Event::choose_ai_option(EvaluationContext const& context) const {
-	size_t best_option = 0;
-	fixed_point_t best_weight = fixed_point_t::min;
-
-	for (size_t index = 0; index < options.size(); ++index) {
-		const fixed_point_t weight = options[index].get_ai_chance().evaluate(context);
-		if (weight > best_weight) {
-			best_weight = weight;
-			best_option = index;
-		}
+size_t Event::choose_ai_option(EvaluationContext const& context, fixed_point_t random_value) const {
+	if (options.empty()) {
+		return 0;
 	}
-	return best_option;
+
+	memory::vector<fixed_point_t> weights;
+	weights.reserve(options.size());
+	fixed_point_t total_weight = 0;
+
+	for (EventOption const& option : options) {
+		const fixed_point_t weight = std::max(option.get_ai_chance().evaluate(context), fixed_point_t { 0 });
+		weights.push_back(weight);
+		total_weight += weight;
+	}
+
+	if (total_weight <= 0) {
+		/* No option has a positive ai_chance (e.g. none were scripted) - pick uniformly. */
+		fixed_point_t uniform_threshold = random_value * fixed_point_t { static_cast<int32_t>(options.size()) };
+		for (size_t index = 0; index < options.size(); ++index) {
+			if (uniform_threshold < fixed_point_t { 1 }) {
+				return index;
+			}
+			uniform_threshold -= 1;
+		}
+		return options.size() - 1;
+	}
+
+	fixed_point_t threshold = random_value * total_weight;
+	for (size_t index = 0; index < weights.size(); ++index) {
+		if (threshold < weights[index]) {
+			return index;
+		}
+		threshold -= weights[index];
+	}
+	return options.size() - 1;
 }
 
 void Event::fire(ExecutionContext& context, size_t option_index) const {

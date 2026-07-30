@@ -84,9 +84,10 @@ namespace OpenVic {
 		 * its mean time to happen: 1 / MTTH days, or 1 for events with no (positive) MTTH. */
 		fixed_point_t calculate_daily_fire_chance(EvaluationContext const& context) const;
 
-		/* The option an AI country picks: the highest evaluated ai_chance weight, earliest
-		 * option winning ties. Returns 0 for events without options. */
-		size_t choose_ai_option(EvaluationContext const& context) const;
+		/* The option an AI country picks: an ai_chance-weighted random roll, matching Victoria 2.
+		 * random_value must be in [0, 1). Options whose weights are all zero (e.g. no ai_chance
+		 * blocks at all) are picked uniformly. Returns 0 for events without options. */
+		size_t choose_ai_option(EvaluationContext const& context, fixed_point_t random_value) const;
 
 		/* Execute this event's immediate effects followed by the chosen option's effects. */
 		void fire(ExecutionContext& context, size_t option_index) const;

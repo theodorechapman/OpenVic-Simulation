@@ -5,6 +5,7 @@
 #include "openvic-simulation/country/CountryDefinition.hpp"
 #include "openvic-simulation/country/CountryInstance.hpp"
 #include "openvic-simulation/country/CountryInstanceManager.hpp"
+#include "openvic-simulation/country/CountryParty.hpp"
 #include "openvic-simulation/economy/GoodDefinition.hpp"
 #include "openvic-simulation/InstanceManager.hpp"
 #include "openvic-simulation/map/MapInstance.hpp"
@@ -12,6 +13,9 @@
 #include "openvic-simulation/map/ProvinceInstance.hpp"
 #include "openvic-simulation/map/Region.hpp"
 #include "openvic-simulation/map/TerrainType.hpp"
+#include "openvic-simulation/politics/Ideology.hpp"
+#include "openvic-simulation/politics/PartyPolicy.hpp"
+#include "openvic-simulation/politics/Reform.hpp"
 #include "openvic-simulation/population/Pop.hpp"
 #include "openvic-simulation/population/PopType.hpp"
 #include "openvic-simulation/research/Invention.hpp"
@@ -371,6 +375,72 @@ bool ConditionEvaluators::has_invention(EvaluationContext const& context, Condit
 	CountryInstance const* country = context.get_current_country();
 	Invention const* invention = static_cast<Invention const*>(node.get_condition_value_item());
 	return country != nullptr && invention != nullptr && country->is_invention_unlocked(*invention);
+}
+
+bool ConditionEvaluators::active_reform(EvaluationContext const& context, ConditionNode const& node) {
+	CountryInstance const* country = context.get_current_country();
+	Reform const* reform = static_cast<Reform const*>(node.get_condition_value_item());
+	if (country == nullptr || reform == nullptr) {
+		return false;
+	}
+	return country->get_reforms().at(reform->group) == reform;
+}
+
+bool ConditionEvaluators::ruling_party_policy(EvaluationContext const& context, ConditionNode const& node) {
+	CountryInstance const* country = context.get_current_country();
+	PartyPolicy const* policy = static_cast<PartyPolicy const*>(node.get_condition_value_item());
+	if (country == nullptr || policy == nullptr) {
+		return false;
+	}
+	CountryParty const* ruling_party = country->get_ruling_party_untracked();
+	return ruling_party != nullptr && ruling_party->get_policies()[policy->group.index] == policy;
+}
+
+/* National support fraction for an issue/ideology: pop supporter equivalents over total
+ * population. TODO - verify against Victoria 2 whether the base is total or adult population,
+ * and note upstream currently fills pop support with placeholder values. */
+template<typename Key>
+static bool _support_at_least(
+	CountryInstance const* country, Key const* key, ConditionNode::real_t const* value,
+	auto get_supporter_equivalents
+) {
+	if (country == nullptr || key == nullptr || value == nullptr) {
+		return false;
+	}
+	/* parse_raw shift instead of the int constructor, which is capped at 4-byte inputs. */
+	const fixed_point_t total_population = fixed_point_t::parse_raw(
+		static_cast<fixed_point_t::value_type>(type_safe::get(country->get_total_population())) << fixed_point_t::PRECISION
+	);
+	if (total_population <= 0) {
+		return false;
+	}
+	const fixed_point_t supporters = get_supporter_equivalents(*country)[key->index];
+	/* supporters / total >= value, rearranged to avoid division. */
+	return supporters >= *value * total_population;
+}
+
+bool ConditionEvaluators::reform_support(EvaluationContext const& context, ConditionNode const& node) {
+	return _support_at_least(
+		context.get_current_country(), static_cast<Reform const*>(node.get_condition_key_item()),
+		_get_value<ConditionNode::real_t>(node),
+		[](CountryInstance const& country) { return country.get_supporter_equivalents_by_reform(); }
+	);
+}
+
+bool ConditionEvaluators::party_policy_support(EvaluationContext const& context, ConditionNode const& node) {
+	return _support_at_least(
+		context.get_current_country(), static_cast<PartyPolicy const*>(node.get_condition_key_item()),
+		_get_value<ConditionNode::real_t>(node),
+		[](CountryInstance const& country) { return country.get_supporter_equivalents_by_party_policy(); }
+	);
+}
+
+bool ConditionEvaluators::ideology_support(EvaluationContext const& context, ConditionNode const& node) {
+	return _support_at_least(
+		context.get_current_country(), static_cast<Ideology const*>(node.get_condition_key_item()),
+		_get_value<ConditionNode::real_t>(node),
+		[](CountryInstance const& country) { return country.get_supporter_equivalents_by_ideology(); }
+	);
 }
 
 bool ConditionEvaluators::continent(EvaluationContext const& context, ConditionNode const& node) {

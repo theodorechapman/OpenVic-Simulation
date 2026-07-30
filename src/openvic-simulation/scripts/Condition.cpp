@@ -159,7 +159,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("capital", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID);
 	ret &= add_condition("casus_belli", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("check_variable", COMPLEX, COUNTRY, NO_SCOPE, NO_IDENTIFIER, VARIABLE);
-	ret &= add_condition("citizenship_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
+	ret &= add_condition(
+		"citizenship_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY,
+		ConditionEvaluators::ruling_party_policy
+	);
 	ret &= add_condition("civilization_progress", REAL, COUNTRY);
 	ret &= add_condition("civilized", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::civilised);
 	ret &= add_condition("colonial_nation", BOOLEAN, COUNTRY);
@@ -174,7 +177,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("culture", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CULTURE);
 	ret &= add_condition("culture_has_union_tag", BOOLEAN, COUNTRY);
 	ret &= add_condition("diplomatic_influence", COMPLEX, COUNTRY);
-	ret &= add_condition("economic_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
+	ret &= add_condition(
+		"economic_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY,
+		ConditionEvaluators::ruling_party_policy
+	);
 	ret &= add_condition("education_spending", REAL, COUNTRY);
 	ret &= add_condition("election", BOOLEAN, COUNTRY);
 	ret &= add_condition(
@@ -274,7 +280,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("recruited_percentage", REAL, COUNTRY);
 	ret &= add_condition("relation", COMPLEX, COUNTRY);
 	ret &= add_condition("religion", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, RELIGION);
-	ret &= add_condition("religious_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
+	ret &= add_condition(
+		"religious_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY,
+		ConditionEvaluators::ruling_party_policy
+	);
 	ret &= add_condition("revanchism", REAL, COUNTRY);
 	ret &= add_condition("revolt_percentage", REAL, COUNTRY);
 	ret &= add_condition("rich_strata_militancy", REAL, COUNTRY);
@@ -301,7 +310,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("total_pops", INTEGER, COUNTRY);
 	ret &= add_condition("total_sea_battles", INTEGER, COUNTRY);
 	ret &= add_condition("total_sunk_by_us", INTEGER, COUNTRY);
-	ret &= add_condition("trade_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
+	ret &= add_condition(
+		"trade_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY,
+		ConditionEvaluators::ruling_party_policy
+	);
 	ret &= add_condition("treasury", REAL, COUNTRY);
 	ret &= add_condition("truce_with", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("unemployment", REAL, COUNTRY);
@@ -311,7 +323,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("vassal_of", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("war", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::war);
 	ret &= add_condition("war_exhaustion", REAL, COUNTRY);
-	ret &= add_condition("war_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
+	ret &= add_condition(
+		"war_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY,
+		ConditionEvaluators::ruling_party_policy
+	);
 	ret &= add_condition("war_score", REAL, COUNTRY);
 	ret &= add_condition("war_with", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG, ConditionEvaluators::war_with);
 
@@ -429,7 +444,8 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		COUNTRY,
 		NO_SCOPE,
 		IDEOLOGY,
-		NO_IDENTIFIER
+		NO_IDENTIFIER,
+		ConditionEvaluators::ideology_support
 	);
 
 	import_identifiers(
@@ -438,7 +454,8 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		COUNTRY,
 		NO_SCOPE,
 		REFORM_GROUP,
-		REFORM
+		REFORM,
+		ConditionEvaluators::active_reform
 	);
 
 	import_identifiers(
@@ -447,7 +464,8 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		COUNTRY,
 		NO_SCOPE,
 		REFORM,
-		NO_IDENTIFIER
+		NO_IDENTIFIER,
+		ConditionEvaluators::reform_support
 	);
 
 	import_identifiers(
@@ -456,7 +474,8 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 		COUNTRY,
 		NO_SCOPE,
 		PARTY_POLICY,
-		NO_IDENTIFIER
+		NO_IDENTIFIER,
+		ConditionEvaluators::party_policy_support
 	);
 
 	import_identifiers(

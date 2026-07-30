@@ -69,7 +69,7 @@ TEST_CASE("Event fires its immediate and chosen option effects", "[misc][event-f
 	CHECK(event->calculate_daily_fire_chance(evaluation_context) == fixed_point_t { 1 });
 
 	ExecutionContext execution_context { fixture.today, &fixture.global_flags };
-	event->fire(execution_context, event->choose_ai_option(evaluation_context));
+	event->fire(execution_context, event->choose_ai_option(evaluation_context, fixed_point_t { 0 }));
 
 	CHECK(fixture.global_flags.has_flag("immediate_ran"sv));
 	CHECK(fixture.global_flags.has_flag("option_ran"sv));
@@ -92,9 +92,14 @@ TEST_CASE("Event AI option choice picks the highest ai_chance", "[misc][event-fi
 	);
 
 	const EvaluationContext evaluation_context { fixture.today, &fixture.global_flags };
-	const size_t chosen = event->choose_ai_option(evaluation_context);
-	CHECK(chosen == 1);
 
+	/* ai_chance weights 1/5/2 (total 8) partition [0,1) into [0,1/8) -> BAD,
+	 * [1/8,6/8) -> GOOD, [6/8,1) -> WORSE - matching Victoria 2's weighted random roll. */
+	CHECK(event->choose_ai_option(evaluation_context, fixed_point_t { 0 }) == 0);
+	CHECK(event->choose_ai_option(evaluation_context, fixed_point_t { 1 } / 4) == 1);
+	CHECK(event->choose_ai_option(evaluation_context, fixed_point_t { 9 } / 10) == 2);
+
+	const size_t chosen = event->choose_ai_option(evaluation_context, fixed_point_t { 1 } / 4);
 	ExecutionContext execution_context { fixture.today, &fixture.global_flags };
 	event->fire(execution_context, chosen);
 
