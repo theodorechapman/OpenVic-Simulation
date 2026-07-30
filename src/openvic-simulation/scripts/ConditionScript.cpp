@@ -9,6 +9,10 @@ ConditionScript::ConditionScript(
 	scope_type_t new_initial_scope, scope_type_t new_this_scope, scope_type_t new_from_scope
 ) : initial_scope { new_initial_scope }, this_scope { new_this_scope }, from_scope { new_from_scope } {}
 
+bool ConditionScript::evaluate(EvaluationContext const& context) const {
+	return condition_root.evaluate(context);
+}
+
 bool ConditionScript::_parse_script(std::span<const ast::NodeCPtr> nodes, DefinitionManager const& definition_manager) {
 	return definition_manager.get_script_manager().get_condition_manager().expect_condition_script(
 		definition_manager,

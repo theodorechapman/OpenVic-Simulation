@@ -13,8 +13,10 @@
 
 namespace OpenVic {
 	struct ConditionManager;
+	struct ConditionNode;
 	struct ConditionScript;
 	struct DefinitionManager;
+	struct EvaluationContext;
 
 	enum class value_type_t : uint8_t {
 		NO_TYPE     = 0,
@@ -201,16 +203,22 @@ namespace OpenVic {
 		using enum identifier_type_t;
 
 	public:
+		/* Evaluates a parsed instance of this condition against the current game state. Bound once at
+		 * registration time so evaluation dispatches without string comparisons; conditions without an
+		 * implemented evaluator are bound to ConditionEvaluators::unimplemented. */
+		using evaluate_fn_t = bool (*)(EvaluationContext const& context, ConditionNode const& node);
+
 		const value_type_t value_type;
 		const scope_type_t scope;
 		const scope_type_t scope_change;
 		const identifier_type_t key_identifier_type;
 		const identifier_type_t value_identifier_type;
+		const evaluate_fn_t evaluate_fn;
 
 		Condition(
 			std::string_view new_identifier, value_type_t new_value_type, scope_type_t new_scope,
 			scope_type_t new_scope_change, identifier_type_t new_key_identifier_type,
-			identifier_type_t new_value_identifier_type
+			identifier_type_t new_value_identifier_type, evaluate_fn_t new_evaluate_fn
 		);
 		Condition(Condition&&) = default;
 	};
@@ -243,6 +251,11 @@ namespace OpenVic {
 			HasIdentifier const* new_condition_key_item = nullptr,
 			HasIdentifier const* new_condition_value_item = nullptr
 		);
+
+	public:
+		/* Evaluate this condition against the given game state context. Invalid or unparsed
+		 * nodes evaluate to false. Never mutates game state. */
+		bool evaluate(EvaluationContext const& context) const;
 	};
 
 	struct ConditionManager {
@@ -254,7 +267,8 @@ namespace OpenVic {
 			std::string_view identifier, value_type_t value_type, scope_type_t scope,
 			scope_type_t scope_change = scope_type_t::NO_SCOPE,
 			identifier_type_t key_identifier_type = identifier_type_t::NO_IDENTIFIER,
-			identifier_type_t value_identifier_type = identifier_type_t::NO_IDENTIFIER
+			identifier_type_t value_identifier_type = identifier_type_t::NO_IDENTIFIER,
+			Condition::evaluate_fn_t evaluate_fn = nullptr
 		);
 
 		NodeTools::callback_t<std::string_view> expect_parse_identifier(

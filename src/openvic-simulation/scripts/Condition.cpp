@@ -4,6 +4,7 @@
 
 #include "openvic-simulation/dataloader/NodeTools.hpp"
 #include "openvic-simulation/DefinitionManager.hpp"
+#include "openvic-simulation/scripts/ConditionEvaluators.hpp"
 
 using namespace OpenVic;
 using namespace OpenVic::NodeTools;
@@ -15,21 +16,29 @@ using enum identifier_type_t;
 Condition::Condition(
 	std::string_view new_identifier, value_type_t new_value_type, scope_type_t new_scope,
 	scope_type_t new_scope_change, identifier_type_t new_key_identifier_type,
-	identifier_type_t new_value_identifier_type
+	identifier_type_t new_value_identifier_type, evaluate_fn_t new_evaluate_fn
 ) : HasIdentifier { new_identifier }, value_type { new_value_type }, scope { new_scope },
 	scope_change { new_scope_change }, key_identifier_type { new_key_identifier_type },
-	value_identifier_type { new_value_identifier_type } {}
+	value_identifier_type { new_value_identifier_type }, evaluate_fn { new_evaluate_fn } {}
 
 ConditionNode::ConditionNode(
 	Condition const* new_condition, value_t&& new_value, bool new_valid,
 	HasIdentifier const* new_condition_key_item,
 	HasIdentifier const* new_condition_value_item
 ) : condition { new_condition }, value { std::move(new_value) }, valid { new_valid },
-	condition_key_item { new_condition_key_item }, condition_value_item { new_condition_key_item } {}
+	condition_key_item { new_condition_key_item }, condition_value_item { new_condition_value_item } {}
+
+bool ConditionNode::evaluate(EvaluationContext const& context) const {
+	if (!valid || condition == nullptr) {
+		return false;
+	}
+	return condition->evaluate_fn(context, *this);
+}
 
 bool ConditionManager::add_condition(
 	std::string_view identifier, value_type_t value_type, scope_type_t scope, scope_type_t scope_change,
-	identifier_type_t key_identifier_type, identifier_type_t value_identifier_type
+	identifier_type_t key_identifier_type, identifier_type_t value_identifier_type,
+	Condition::evaluate_fn_t evaluate_fn
 ) {
 	if (identifier.empty()) {
 		spdlog::error_s("Invalid condition identifier - empty!");
@@ -63,9 +72,13 @@ bool ConditionManager::add_condition(
 		}
 	}
 
+	if (evaluate_fn == nullptr) {
+		evaluate_fn = ConditionEvaluators::unimplemented;
+	}
+
 	return conditions.emplace_item(
 		identifier,
-		identifier, value_type,	scope, scope_change, key_identifier_type, value_identifier_type
+		identifier, value_type,	scope, scope_change, key_identifier_type, value_identifier_type, evaluate_fn
 	);
 }
 
@@ -73,25 +86,31 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	bool ret = true;
 
 	/* Special Scopes */
-	ret &= add_condition("THIS", GROUP, COUNTRY, THIS);
-	ret &= add_condition("FROM", GROUP, COUNTRY, FROM);
+	ret &= add_condition("THIS", GROUP, COUNTRY, THIS, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::redirect_this);
+	ret &= add_condition("FROM", GROUP, COUNTRY, FROM, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::redirect_from);
 	ret &= add_condition("independence", GROUP, COUNTRY, COUNTRY); //only from rebels!
 
 	/* Trigger Country Scopes */
-	ret &= add_condition("all_core", GROUP, COUNTRY, PROVINCE);
-	ret &= add_condition("any_core", GROUP, COUNTRY, PROVINCE);
-	ret &= add_condition("any_greater_power", GROUP, COUNTRY, COUNTRY);
+	ret &= add_condition("all_core", GROUP, COUNTRY, PROVINCE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::all_core);
+	ret &= add_condition("any_core", GROUP, COUNTRY, PROVINCE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::any_core);
+	ret &= add_condition(
+		"any_greater_power", GROUP, COUNTRY, COUNTRY, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::any_greater_power
+	);
 	ret &= add_condition("any_neighbor_country", GROUP, COUNTRY, COUNTRY);
-	ret &= add_condition("any_owned_province", GROUP, COUNTRY, PROVINCE);
+	ret &= add_condition(
+		"any_owned_province", GROUP, COUNTRY, PROVINCE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::any_owned_province
+	);
 	ret &= add_condition("any_pop", GROUP, COUNTRY, POP);
 	ret &= add_condition("any_sphere_member", GROUP, COUNTRY, COUNTRY);
 	ret &= add_condition("any_state", GROUP, COUNTRY, STATE);
 	ret &= add_condition("any_substate", GROUP, COUNTRY, COUNTRY);
-	ret &= add_condition("capital_scope", GROUP, COUNTRY, PROVINCE);
+	ret &= add_condition(
+		"capital_scope", GROUP, COUNTRY, PROVINCE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::capital_scope
+	);
 	ret &= add_condition("country", GROUP, COUNTRY, COUNTRY);
 	ret &= add_condition("cultural_union", GROUP, COUNTRY, COUNTRY);
 	ret &= add_condition("overlord", GROUP, COUNTRY, COUNTRY);
-	ret &= add_condition("owner", GROUP, COUNTRY, COUNTRY);
+	ret &= add_condition("owner", GROUP, COUNTRY, COUNTRY, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::province_owner);
 	ret &= add_condition("sphere_owner", GROUP, COUNTRY, COUNTRY);
 	ret &= add_condition("war_countries", GROUP, COUNTRY, COUNTRY);
 
@@ -99,28 +118,32 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("any_neighbor_province", GROUP, STATE, PROVINCE);
 
 	/* Trigger Province Scopes */
-	ret &= add_condition("controller", GROUP, PROVINCE, COUNTRY);
+	ret &= add_condition(
+		"controller", GROUP, PROVINCE, COUNTRY, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::province_controller
+	);
 	ret &= add_condition("state_scope", GROUP, PROVINCE, STATE);
 
 	/* Trigger Pop Scopes */
-	ret &= add_condition("location", GROUP, POP, PROVINCE);
+	ret &= add_condition("location", GROUP, POP, PROVINCE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::pop_location);
 
 	/* Special Conditions */
-	ret &= add_condition("AND", GROUP, COUNTRY);
-	ret &= add_condition("OR", GROUP, COUNTRY);
-	ret &= add_condition("NOT", GROUP, COUNTRY);
+	ret &= add_condition("AND", GROUP, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::logical_and);
+	ret &= add_condition("OR", GROUP, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::logical_or);
+	ret &= add_condition("NOT", GROUP, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::logical_not);
 
 	/* Global Conditions */
-	ret &= add_condition("year", INTEGER, COUNTRY);
-	ret &= add_condition("month", INTEGER, COUNTRY);
-	ret &= add_condition("has_global_flag", IDENTIFIER, COUNTRY,  NO_SCOPE, NO_IDENTIFIER, GLOBAL_FLAG);
+	ret &= add_condition("year", INTEGER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::year);
+	ret &= add_condition("month", INTEGER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::month);
+	ret &= add_condition(
+		"has_global_flag", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, GLOBAL_FLAG, ConditionEvaluators::has_global_flag
+	);
 	ret &= add_condition("is_canal_enabled", INTEGER, COUNTRY);
-	ret &= add_condition("always", BOOLEAN, COUNTRY);
+	ret &= add_condition("always", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::always);
 	ret &= add_condition("world_wars_enabled", BOOLEAN, COUNTRY);
 
 	/* Country Scope Conditions */
 	ret &= add_condition("administration_spending", REAL, COUNTRY);
-	ret &= add_condition("ai", BOOLEAN, COUNTRY);
+	ret &= add_condition("ai", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::ai);
 	ret &= add_condition("alliance_with", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("average_consciousness", REAL, COUNTRY);
 	ret &= add_condition("average_militancy", REAL, COUNTRY);
@@ -138,7 +161,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("check_variable", COMPLEX, COUNTRY, NO_SCOPE, NO_IDENTIFIER, VARIABLE);
 	ret &= add_condition("citizenship_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
 	ret &= add_condition("civilization_progress", REAL, COUNTRY);
-	ret &= add_condition("civilized", BOOLEAN, COUNTRY);
+	ret &= add_condition("civilized", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::civilised);
 	ret &= add_condition("colonial_nation", BOOLEAN, COUNTRY);
 	ret &= add_condition("consciousness", REAL, COUNTRY);
 	ret &= add_condition("constructing_cb_progress", REAL, COUNTRY);
@@ -154,11 +177,15 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("economic_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
 	ret &= add_condition("education_spending", REAL, COUNTRY);
 	ret &= add_condition("election", BOOLEAN, COUNTRY);
-	ret &= add_condition("exists", IDENTIFIER | BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
+	ret &= add_condition(
+		"exists", IDENTIFIER | BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG, ConditionEvaluators::exists
+	);
 	ret &= add_condition("government", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, GOVERNMENT_TYPE);
 	ret &= add_condition("great_wars_enabled", BOOLEAN, COUNTRY);
 	ret &= add_condition("have_core_in", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("has_country_flag", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_FLAG);
+	ret &= add_condition(
+		"has_country_flag", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_FLAG, ConditionEvaluators::has_country_flag
+	);
 	ret &= add_condition("has_country_modifier", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_EVENT_MODIFIER);
 	ret &= add_condition("has_cultural_sphere", BOOLEAN, COUNTRY);
 	ret &= add_condition("has_leader", STRING, COUNTRY);
@@ -177,7 +204,9 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("is_colonial_crisis", BOOLEAN, COUNTRY);
 	ret &= add_condition("is_cultural_union", IDENTIFIER | BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("is_disarmed", BOOLEAN, COUNTRY);
-	ret &= add_condition("is_greater_power", BOOLEAN, COUNTRY);
+	ret &= add_condition(
+		"is_greater_power", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::is_greater_power
+	);
 	ret &= add_condition("is_colonial", BOOLEAN, STATE);
 	ret &= add_condition("is_core", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG | PROVINCE_ID);
 	ret &= add_condition("is_culture_group", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG | CULTURE_GROUP);
@@ -189,7 +218,10 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("is_our_vassal", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("is_possible_vassal", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("is_releasable_vassal", IDENTIFIER | BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("is_secondary_power", BOOLEAN, COUNTRY);
+	ret &= add_condition(
+		"is_secondary_power", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER,
+		ConditionEvaluators::is_secondary_power
+	);
 	ret &= add_condition("is_sphere_leader_of", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("is_substate", BOOLEAN, COUNTRY);
 	ret &= add_condition("is_subject", BOOLEAN, COUNTRY);
@@ -217,7 +249,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("num_of_substates", INTEGER, COUNTRY);
 	ret &= add_condition("num_of_vassals", INTEGER, COUNTRY);
 	ret &= add_condition("num_of_vassals_no_substates", INTEGER, COUNTRY);
-	ret &= add_condition("owns", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID);
+	ret &= add_condition("owns", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PROVINCE_ID, ConditionEvaluators::owns);
 	ret &= add_condition("part_of_sphere", BOOLEAN, COUNTRY);
 	ret &= add_condition("plurality", REAL, COUNTRY);
 	ret &= add_condition("political_movement_strength", REAL, COUNTRY);
@@ -256,7 +288,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("social_spending", REAL, COUNTRY);
 	ret &= add_condition("stronger_army_than", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
 	ret &= add_condition("substate_of", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("tag", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
+	ret &= add_condition("tag", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG, ConditionEvaluators::tag);
 	ret &= add_condition("tech_school", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, TECH_SCHOOL);
 	ret &= add_condition("this_culture_union", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, CULTURE_UNION);
 	ret &= add_condition("total_amount_of_divisions", INTEGER, COUNTRY);
@@ -275,7 +307,7 @@ bool ConditionManager::setup_conditions(DefinitionManager const& definition_mana
 	ret &= add_condition("unit_in_battle", BOOLEAN, COUNTRY);
 	ret &= add_condition("upper_house", COMPLEX, COUNTRY);
 	ret &= add_condition("vassal_of", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, COUNTRY_TAG);
-	ret &= add_condition("war", BOOLEAN, COUNTRY);
+	ret &= add_condition("war", BOOLEAN, COUNTRY, NO_SCOPE, NO_IDENTIFIER, NO_IDENTIFIER, ConditionEvaluators::war);
 	ret &= add_condition("war_exhaustion", REAL, COUNTRY);
 	ret &= add_condition("war_policy", IDENTIFIER, COUNTRY, NO_SCOPE, NO_IDENTIFIER, PARTY_POLICY);
 	ret &= add_condition("war_score", REAL, COUNTRY);
