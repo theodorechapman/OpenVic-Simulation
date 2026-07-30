@@ -1,6 +1,23 @@
 [![🖥️ Builds](https://github.com/OpenVicProject/OpenVic-Simulation/actions/workflows/builds.yml/badge.svg)](https://github.com/OpenVicProject/OpenVic-Simulation/actions/workflows/builds.yml)
 
 # OpenVic-Simulation
+
+> ### About this fork
+> This is [Theo Chapman](https://github.com/theodorechapman)'s working fork of
+> [OpenVic-Simulation](https://github.com/OpenVicProject/OpenVic-Simulation). Upstream has a complete
+> Victoria 2 data parser and a deep economic simulation, but scripts (event triggers, effects, MTTH,
+> `ai_will_do`, ...) only parse - they can't run. The `feature/condition-evaluation` branch adds that
+> missing runtime: conditions evaluate against game state, effects execute and mutate it, conditional
+> weights compute, and the daily tick spontaneously fires country/province/pulse events, chains events
+> through effects, and runs a monthly AI decision pass - all deterministic (fixed-point math, seeded RNG)
+> and unit tested end to end from real script text.
+>
+> The architecture - evaluation/execution function pointers bound once at condition/effect registration,
+> no string dispatch at runtime, no script logic on game instance types - is a deliberate alternative to
+> upstream PR [#698](https://github.com/OpenVicProject/OpenVic-Simulation/pull/698) and its review
+> feedback, and is intended to be offered upstream. Coverage is a vertical slice: ~25 of ~245 conditions
+> and ~15 effects so far; everything else is a warn-once no-op so unmodified game files still load.
+
 Repo of the OpenVic-Simulation Library for [OpenVic](https://github.com/OpenVicProject/OpenVic)
 
 ## Quickstart Guide
