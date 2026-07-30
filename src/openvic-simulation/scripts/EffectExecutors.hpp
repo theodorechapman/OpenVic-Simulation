@@ -36,5 +36,9 @@ namespace OpenVic {
 		 * the core, in country scope the value names the province gaining/losing it. */
 		void add_core(ExecutionContext& context, EffectNode const& node);
 		void remove_core(ExecutionContext& context, EffectNode const& node);
+
+		/* trade_goods = <good> - switch the current province's RGO to produce the good,
+		 * converting worker pops (e.g. the Gold Rush event). */
+		void change_rgo_good(ExecutionContext& context, EffectNode const& node);
 	}
 }

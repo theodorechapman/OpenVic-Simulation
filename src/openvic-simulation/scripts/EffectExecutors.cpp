@@ -7,6 +7,8 @@
 #include "openvic-simulation/country/CountryInstance.hpp"
 #include "openvic-simulation/country/CountryInstanceManager.hpp"
 #include "openvic-simulation/DefinitionManager.hpp"
+#include "openvic-simulation/economy/GoodDefinition.hpp"
+#include "openvic-simulation/economy/production/ProductionType.hpp"
 #include "openvic-simulation/InstanceManager.hpp"
 #include "openvic-simulation/map/MapInstance.hpp"
 #include "openvic-simulation/map/ProvinceDefinition.hpp"
@@ -297,4 +299,25 @@ void EffectExecutors::remove_core(ExecutionContext& context, EffectNode const& n
 	if (province != nullptr && country != nullptr) {
 		province->remove_core(*country, false);
 	}
+}
+
+void EffectExecutors::change_rgo_good(ExecutionContext& context, EffectNode const& node) {
+	ProvinceInstance* province = context.get_current_province();
+	GoodDefinition const* good = static_cast<GoodDefinition const*>(node.get_effect_value_item());
+	if (province == nullptr || good == nullptr || context.instance_manager == nullptr) {
+		return;
+	}
+
+	DefinitionManager const& definition_manager = context.instance_manager->definition_manager;
+	ProductionType const* production_type =
+		definition_manager.get_economy_manager().get_production_type_manager()
+			.get_good_to_rgo_production_type().at(*good);
+	if (production_type == nullptr) {
+		spdlog::warn_s(
+			"trade_goods effect could not find an RGO production type for good {}!", good->get_identifier()
+		);
+		return;
+	}
+
+	province->set_rgo_production_type_nullable(definition_manager.get_pop_manager().get_pop_types(), production_type);
 }

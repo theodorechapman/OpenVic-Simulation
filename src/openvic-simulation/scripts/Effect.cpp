@@ -105,6 +105,8 @@ bool EffectManager::setup_effects(DefinitionManager const& definition_manager) {
 		"clr_province_flag", IDENTIFIER, PROVINCE, NO_SCOPE, PROVINCE_FLAG, EffectExecutors::clr_province_flag
 	);
 
+	ret &= add_effect("trade_goods", IDENTIFIER, PROVINCE, NO_SCOPE, TRADE_GOOD, EffectExecutors::change_rgo_good);
+
 	/* Event chain effects */
 	ret &= add_effect(
 		"country_event", INTEGER | COMPLEX, COUNTRY, NO_SCOPE, NO_IDENTIFIER, EffectExecutors::country_event
